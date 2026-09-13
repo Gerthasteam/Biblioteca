@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 // Debounced AniList search tied to a title field. Calling onPick fills in
 // title + cover + total from the picked result.
-const SOURCE_LABEL = { manga: "AniList", anime: "AniList", videojuego: "Steam", tcg: "Pokémon / One Piece TCG" };
+const SOURCE_LABEL = { manga: "AniList", anime: "AniList", videojuego: "RAWG / Steam", tcg: "Pokémon / One Piece TCG" };
 
 export default function CoverSearch({ query, type, onPick }) {
   const [results, setResults] = useState([]);
