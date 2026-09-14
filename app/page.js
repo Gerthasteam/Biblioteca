@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, BookOpen, Folder, ChevronLeft, Trash2 } from "lucide-react";
+import { Search, Plus, BookOpen, Folder, FolderPlus, ChevronLeft, Trash2, Pencil } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import Home from "./components/Home";
@@ -44,6 +44,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState([]);
   const [animes, setAnimes] = useState([]);
+  const [customFolders, setCustomFolders] = useState([]); // [{ id, name }] — carpetas TCG armadas a mano
   const [toast, setToast] = useState(null);
 
   const [itemModal, setItemModal] = useState(null); // { editing, defaultCategory } | null
@@ -71,10 +72,11 @@ export default function App() {
 
   async function loadAll() {
     try {
-      const [ir, ar] = await Promise.all([fetch("/api/items"), fetch("/api/animes")]);
-      const [ij, aj] = await Promise.all([ir.json(), ar.json()]);
+      const [ir, ar, fr] = await Promise.all([fetch("/api/items"), fetch("/api/animes"), fetch("/api/tcg/folders")]);
+      const [ij, aj, fj] = await Promise.all([ir.json(), ar.json(), fr.json()]);
       if (ij.items) setItems(ij.items);
       if (aj.animes) setAnimes(aj.animes);
+      if (fj.folders) setCustomFolders(fj.folders);
       if (ij.error || aj.error) {
         flashToast("Todavía no conectaste la base de datos — los cambios no se guardan.");
       }
@@ -101,7 +103,7 @@ export default function App() {
     return filterBySearch(list);
   }, [items, categoryFilter, search]);
 
-  const tcgFolders = useMemo(() => groupTcgFolders(items), [items]);
+  const tcgFolders = useMemo(() => groupTcgFolders(items, customFolders), [items, customFolders]);
   const activeFolderItems = useMemo(() => {
     if (!activeTcgFolder) return [];
     return items.filter((it) => {
@@ -217,24 +219,78 @@ export default function App() {
     setActiveTcgFolder(folder);
   }
 
-  // Borra una carpeta TCG entera (todas las cartas de esa expansión) de una.
-  async function deleteTcgFolder(folder, ids) {
-    if (!ids.length) return;
-    const label = folder.setName || "esta carpeta";
-    if (!window.confirm(`¿Borrar la carpeta "${label}" y sus ${ids.length} carta${ids.length === 1 ? "" : "s"}? No se puede deshacer.`)) {
-      return;
+  // Carpeta TCG armada a mano (botón "Nueva carpeta"): no viene de exportar
+  // una expansión, así que arranca vacía y se le van agregando cartas.
+  async function createCustomFolder() {
+    const name = window.prompt("Nombre de la carpeta:");
+    if (!name || !name.trim()) return;
+    try {
+      const res = await fetch("/api/tcg/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "error");
+      setCustomFolders((prev) => [...prev, json.folder]);
+      setCategoryFilter("tcg");
+      setActiveTcgFolder({
+        key: `custom:${json.folder.id}`,
+        game: "custom",
+        setId: json.folder.id,
+        setName: json.folder.name,
+        custom: true,
+        items: []
+      });
+    } catch (err) {
+      flashToast("No se pudo crear la carpeta: " + err.message);
     }
-    setItems((prev) => prev.filter((it) => !ids.includes(it.id)));
+  }
+
+  async function renameCustomFolder(folder) {
+    const name = window.prompt("Nuevo nombre de la carpeta:", folder.setName);
+    if (!name || !name.trim() || name.trim() === folder.setName) return;
+    try {
+      const res = await fetch(`/api/tcg/folders/${folder.setId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "error");
+      setCustomFolders((prev) => prev.map((f) => (f.id === folder.setId ? json.folder : f)));
+      setActiveTcgFolder((prev) => (prev && prev.setId === folder.setId ? { ...prev, setName: json.folder.name } : prev));
+    } catch (err) {
+      flashToast("No se pudo renombrar la carpeta: " + err.message);
+    }
+  }
+
+  // Borra una carpeta TCG entera (todas sus cartas, y si es manual también
+  // el registro de la carpeta — puede estar vacía todavía).
+  async function deleteTcgFolder(folder, ids) {
+    if (!ids.length && folder.game !== "custom") return;
+    const label = folder.setName || "esta carpeta";
+    const msg = ids.length
+      ? `¿Borrar la carpeta "${label}" y sus ${ids.length} carta${ids.length === 1 ? "" : "s"}? No se puede deshacer.`
+      : `¿Borrar la carpeta "${label}"? No se puede deshacer.`;
+    if (!window.confirm(msg)) return;
+    if (ids.length) setItems((prev) => prev.filter((it) => !ids.includes(it.id)));
+    if (folder.game === "custom") setCustomFolders((prev) => prev.filter((f) => f.id !== folder.setId));
     if (activeTcgFolder && activeTcgFolder.game === folder.game && activeTcgFolder.setId === folder.setId) {
       setActiveTcgFolder(null);
     }
     try {
-      const res = await fetch("/api/items/bulk", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids })
-      });
-      if (!res.ok) throw new Error("error");
+      if (ids.length) {
+        const res = await fetch("/api/items/bulk", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids })
+        });
+        if (!res.ok) throw new Error("error");
+      }
+      if (folder.game === "custom") {
+        await fetch(`/api/tcg/folders/${folder.setId}`, { method: "DELETE" });
+      }
       flashToast(`Carpeta "${label}" borrada.`);
     } catch {
       flashToast("No se pudo borrar la carpeta en el servidor.");
@@ -380,6 +436,10 @@ export default function App() {
                   <button type="button" className="btn subtle" onClick={() => setFolderModal({ game: "onepiece" })}>
                     One Piece
                   </button>
+                  <button type="button" className="btn subtle" onClick={createCustomFolder}>
+                    <FolderPlus size={14} />
+                    Nueva carpeta
+                  </button>
                 </div>
               )}
 
@@ -459,14 +519,26 @@ export default function App() {
                           <ChevronLeft size={14} />
                           Mis carpetas
                         </button>
-                        <button
-                          type="button"
-                          className="btn subtle"
-                          onClick={() => deleteTcgFolder(activeTcgFolder, activeFolderItems.map((it) => it.id))}
-                        >
-                          <Trash2 size={14} />
-                          Borrar carpeta
-                        </button>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {activeTcgFolder.game === "custom" && (
+                            <button
+                              type="button"
+                              className="btn subtle"
+                              onClick={() => setItemModal({ editing: null, defaultCategory: "tcg", tcgFolderTarget: { id: activeTcgFolder.setId, name: activeTcgFolder.setName } })}
+                            >
+                              <Plus size={14} />
+                              Agregar carta
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn subtle"
+                            onClick={() => deleteTcgFolder(activeTcgFolder, activeFolderItems.map((it) => it.id))}
+                          >
+                            <Trash2 size={14} />
+                            Borrar carpeta
+                          </button>
+                        </div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                         {activeFolderItems[0]?.coverUrl && (
@@ -478,10 +550,20 @@ export default function App() {
                         )}
                         <h2>
                           {activeTcgFolder.setName}
-                          {formatSetCode(activeTcgFolder.setId) && (
+                          {activeTcgFolder.game !== "custom" && formatSetCode(activeTcgFolder.setId) && (
                             <span className="tcg-folder-tile__code"> ({formatSetCode(activeTcgFolder.setId)})</span>
                           )}
                         </h2>
+                        {activeTcgFolder.game === "custom" && (
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            title="Renombrar carpeta"
+                            onClick={() => renameCustomFolder(activeTcgFolder)}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
                       </div>
                       {shownFolderItems.length === 0 ? (
                         <p className="empty-note">Esta carpeta todavía no tiene cartas.</p>
@@ -497,7 +579,8 @@ export default function App() {
                     </>
                   ) : tcgFolders.length === 0 ? (
                     <p className="empty-note">
-                      Todavía no exportaste ninguna expansión — usá el botón de arriba (One Piece).
+                      Todavía no tenés ninguna carpeta — exportá una expansión (One Piece) o creá una a mano con
+                      "Nueva carpeta".
                     </p>
                   ) : (
                     <div className="tcg-folder-grid">
@@ -518,12 +601,12 @@ export default function App() {
                               )}
                               <div className="tcg-folder-tile__name">
                                 {f.setName}
-                                {formatSetCode(f.setId) && (
+                                {!f.custom && formatSetCode(f.setId) && (
                                   <span className="tcg-folder-tile__code"> ({formatSetCode(f.setId)})</span>
                                 )}
                               </div>
                               <div className="tcg-folder-tile__count">
-                                {owned}/{f.items.length} cartas
+                                {f.items.length === 0 ? "Vacía" : `${owned}/${f.items.length} cartas`}
                               </div>
                             </button>
                             <button
@@ -579,6 +662,7 @@ export default function App() {
         <ItemModal
           editing={itemModal.editing}
           defaultCategory={itemModal.defaultCategory}
+          tcgFolderTarget={itemModal.tcgFolderTarget}
           onClose={() => setItemModal(null)}
           onSave={saveItem}
           onDelete={() => deleteItem(itemModal.editing.id)}

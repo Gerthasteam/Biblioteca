@@ -5,11 +5,14 @@ import StarPicker from "./StarPicker";
 import CoverSearch from "./CoverSearch";
 import TcgPicker from "./TcgPicker";
 import { CATEGORY_UNIT } from "../../lib/ui";
-import { withTcgRef } from "../../lib/tcgRef";
+import { withTcgRef, newCardId } from "../../lib/tcgRef";
 
-export default function ItemModal({ editing, defaultCategory, onClose, onSave, onDelete }) {
+// tcgFolderTarget: { id, name } — cuando se agrega una carta desde adentro
+// de una carpeta TCG armada a mano, en vez de mostrar el buscador de
+// Pokémon/One Piece se carga a mano y se etiqueta directo en esa carpeta.
+export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, onClose, onSave, onDelete }) {
   const [title, setTitle] = useState(editing ? editing.title : "");
-  const [category, setCategory] = useState(editing ? editing.category : defaultCategory || "manga");
+  const [category, setCategory] = useState(editing ? editing.category : tcgFolderTarget ? "tcg" : defaultCategory || "manga");
   // Una carta de TCG que buscás y cargás a mano ya la tenés — arranca "completo".
   const [status, setStatus] = useState(editing ? editing.status : category === "tcg" ? "completo" : "pendiente");
   const [unit, setUnit] = useState(editing ? editing.unit : "");
@@ -25,6 +28,10 @@ export default function ItemModal({ editing, defaultCategory, onClose, onSave, o
     const t = title.trim();
     if (!t) return;
     setSaving(true);
+    let finalNotes = notes.trim();
+    if (tcgFolderTarget && !editing) {
+      finalNotes = withTcgRef(finalNotes, "custom", tcgFolderTarget.id, tcgFolderTarget.name, newCardId());
+    }
     onSave({
       title: t,
       category,
@@ -33,7 +40,7 @@ export default function ItemModal({ editing, defaultCategory, onClose, onSave, o
       current: parseInt(current || 0, 10),
       total: total === "" ? null : parseInt(total, 10),
       rating,
-      notes: notes.trim(),
+      notes: finalNotes,
       coverUrl: coverUrl.trim() || null
     });
   }
@@ -67,7 +74,16 @@ export default function ItemModal({ editing, defaultCategory, onClose, onSave, o
           )}
         </div>
 
-        {category === "tcg" && (
+        {category === "tcg" && tcgFolderTarget && !editing && (
+          <div className="field">
+            <div className="empty-note" style={{ margin: 0 }}>
+              Se va a agregar a la carpeta <strong>{tcgFolderTarget.name}</strong>. Completá el título y, si
+              querés, pegá una imagen abajo.
+            </div>
+          </div>
+        )}
+
+        {category === "tcg" && !tcgFolderTarget && (
           <div className="field">
             <label>Buscar carta</label>
             <TcgPicker
@@ -83,21 +99,23 @@ export default function ItemModal({ editing, defaultCategory, onClose, onSave, o
           </div>
         )}
 
-        <div className="field">
-          <label>Categoría</label>
-          <div className="pill-group">
-            {["manga", "tcg", "videojuego", "otro"].map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={category === c ? "active" : ""}
-                onClick={() => setCategory(c)}
-              >
-                {{ manga: "Manga", tcg: "TCG", videojuego: "Videojuego", otro: "Otro" }[c]}
-              </button>
-            ))}
+        {!tcgFolderTarget && (
+          <div className="field">
+            <label>Categoría</label>
+            <div className="pill-group">
+              {["manga", "tcg", "videojuego", "otro"].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={category === c ? "active" : ""}
+                  onClick={() => setCategory(c)}
+                >
+                  {{ manga: "Manga", tcg: "TCG", videojuego: "Videojuego", otro: "Otro" }[c]}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="field">
           <label htmlFor="itemStatus">Estado</label>
@@ -119,43 +137,47 @@ export default function ItemModal({ editing, defaultCategory, onClose, onSave, o
           />
         </div>
 
-        <div className="row2">
-          <div className="field">
-            <label htmlFor="itemUnit">Unidad de progreso</label>
-            <input
-              id="itemUnit"
-              type="text"
-              maxLength={24}
-              placeholder={CATEGORY_UNIT[category]}
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="itemCurrent">Vas por</label>
-            <input
-              id="itemCurrent"
-              type="number"
-              min={0}
-              step={1}
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-            />
-          </div>
-        </div>
+        {category !== "tcg" && (
+          <>
+            <div className="row2">
+              <div className="field">
+                <label htmlFor="itemUnit">Unidad de progreso</label>
+                <input
+                  id="itemUnit"
+                  type="text"
+                  maxLength={24}
+                  placeholder={CATEGORY_UNIT[category]}
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="itemCurrent">Vas por</label>
+                <input
+                  id="itemCurrent"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={current}
+                  onChange={(e) => setCurrent(e.target.value)}
+                />
+              </div>
+            </div>
 
-        <div className="field">
-          <label htmlFor="itemTotal">Total (opcional)</label>
-          <input
-            id="itemTotal"
-            type="number"
-            min={0}
-            step={1}
-            placeholder="Ej: 24"
-            value={total}
-            onChange={(e) => setTotal(e.target.value)}
-          />
-        </div>
+            <div className="field">
+              <label htmlFor="itemTotal">Total (opcional)</label>
+              <input
+                id="itemTotal"
+                type="number"
+                min={0}
+                step={1}
+                placeholder="Ej: 24"
+                value={total}
+                onChange={(e) => setTotal(e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         <div className="field">
           <label>Puntaje</label>
