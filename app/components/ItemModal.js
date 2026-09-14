@@ -137,46 +137,60 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
           />
         </div>
 
-        {category !== "tcg" && (
-          <>
-            <div className="row2">
-              <div className="field">
-                <label htmlFor="itemUnit">Unidad de progreso</label>
-                <input
-                  id="itemUnit"
-                  type="text"
-                  maxLength={24}
-                  placeholder={CATEGORY_UNIT[category]}
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="itemCurrent">Vas por</label>
-                <input
-                  id="itemCurrent"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={current}
-                  onChange={(e) => setCurrent(e.target.value)}
-                />
-              </div>
-            </div>
-
+        {category !== "tcg" && category !== "manga" && (
+          <div className="row2">
             <div className="field">
-              <label htmlFor="itemTotal">Total (opcional)</label>
+              <label htmlFor="itemUnit">Unidad de progreso</label>
               <input
-                id="itemTotal"
+                id="itemUnit"
+                type="text"
+                maxLength={24}
+                placeholder={CATEGORY_UNIT[category]}
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="itemCurrent">Vas por</label>
+              <input
+                id="itemCurrent"
                 type="number"
                 min={0}
                 step={1}
-                placeholder="Ej: 24"
-                value={total}
-                onChange={(e) => setTotal(e.target.value)}
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
               />
             </div>
-          </>
+          </div>
+        )}
+
+        {category === "manga" && (
+          <div className="field">
+            <label htmlFor="itemCurrent">Vas por</label>
+            <input
+              id="itemCurrent"
+              type="number"
+              min={0}
+              step={1}
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </div>
+        )}
+
+        {category !== "tcg" && (
+          <div className="field">
+            <label htmlFor="itemTotal">Total (opcional)</label>
+            <input
+              id="itemTotal"
+              type="number"
+              min={0}
+              step={1}
+              placeholder="Ej: 24"
+              value={total}
+              onChange={(e) => setTotal(e.target.value)}
+            />
+          </div>
         )}
 
         <div className="field">
