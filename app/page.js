@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, BookOpen, Folder, FolderPlus, ChevronLeft, Trash2, Pencil } from "lucide-react";
+import { Search, Plus, BookOpen, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Download } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import Home from "./components/Home";
@@ -12,6 +12,8 @@ import ItemModal from "./components/ItemModal";
 import AnimeModal from "./components/AnimeModal";
 import DetailModal from "./components/DetailModal";
 import TcgFolderModal from "./components/TcgFolderModal";
+import SteamImportModal from "./components/SteamImportModal";
+import ShelfImageModal from "./components/ShelfImageModal";
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
 
@@ -52,6 +54,8 @@ export default function App() {
   const [detail, setDetail] = useState(null); // { kind, id } | null
   const [folderModal, setFolderModal] = useState(null); // { game } | null
   const [activeTcgFolder, setActiveTcgFolder] = useState(null); // { key, game, setId, setName } | null
+  const [steamImportOpen, setSteamImportOpen] = useState(false);
+  const [shelfImageOpen, setShelfImageOpen] = useState(false);
 
   function flashToast(msg) {
     setToast(msg);
@@ -210,6 +214,29 @@ export default function App() {
       );
     } catch (err) {
       flashToast("No se pudo exportar la carpeta: " + err.message);
+    }
+  }
+
+  // Importar de Steam: la lista ya viene armada (con checkboxes) desde
+  // SteamImportModal, acá solo la mandamos en bloque igual que exportTcgSet.
+  async function importSteamGames(payloadItems) {
+    try {
+      const res = await fetch("/api/items/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: payloadItems })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "error");
+      setItems((prev) => [...prev, ...(json.items || [])]);
+      setSteamImportOpen(false);
+      flashToast(
+        json.items.length
+          ? `Se importaron ${json.items.length} juego${json.items.length === 1 ? "" : "s"} de Steam.`
+          : "No había juegos nuevos para importar."
+      );
+    } catch (err) {
+      flashToast("No se pudo importar: " + err.message);
     }
   }
 
@@ -387,7 +414,13 @@ export default function App() {
 
         <main className="main">
           {view === "home" && (
-            <Home items={items} animes={animes} onNavigate={navigate} onOpen={openDetail} />
+            <Home
+              items={items}
+              animes={animes}
+              onNavigate={navigate}
+              onOpen={openDetail}
+              onShareImage={() => setShelfImageOpen(true)}
+            />
           )}
 
           {view !== "home" && (
@@ -475,6 +508,15 @@ export default function App() {
                     onReorder={(ids) => reorderCategory("manga", ids)}
                   />
                 ))}
+
+              {view === "videojuego" && (
+                <div className="tcg-game-row">
+                  <button type="button" className="btn subtle" onClick={() => setSteamImportOpen(true)}>
+                    <Download size={14} />
+                    Importar de Steam
+                  </button>
+                </div>
+              )}
 
               {view === "videojuego" &&
                 (gameItems.length === 0 ? (
@@ -700,6 +742,16 @@ export default function App() {
           onClose={() => setFolderModal(null)}
         />
       )}
+
+      {steamImportOpen && (
+        <SteamImportModal
+          existingTitles={new Set(gameItems.map((g) => g.title.toLowerCase().trim()))}
+          onClose={() => setSteamImportOpen(false)}
+          onImport={importSteamGames}
+        />
+      )}
+
+      {shelfImageOpen && <ShelfImageModal items={items} animes={animes} onClose={() => setShelfImageOpen(false)} />}
 
       {toast && <div className="toast">{toast}</div>}
     </div>
