@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, BookOpen, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Download } from "lucide-react";
+import { Search, Plus, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Download } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import Home from "./components/Home";
@@ -406,7 +406,7 @@ export default function App() {
         <header className="topbar">
           <div className="topbar__brand">
             <div className="topbar__logo">
-              <BookOpen size={16} />
+              <img src="/mascot-icon.png" alt="" />
             </div>
             <div className="topbar__title">Mi Colección</div>
           </div>
@@ -620,10 +620,13 @@ export default function App() {
                       )}
                     </>
                   ) : tcgFolders.length === 0 ? (
-                    <p className="empty-note">
-                      Todavía no tenés ninguna carpeta — exportá una expansión (One Piece) o creá una a mano con
-                      "Nueva carpeta".
-                    </p>
+                    <div className="empty-note empty-note--mascot">
+                      <img src="/mascot.png" alt="" />
+                      <p>
+                        Todavía no tenés ninguna carpeta — exportá una expansión (One Piece) o creá una a mano con
+                        "Nueva carpeta".
+                      </p>
+                    </div>
                   ) : (
                     <div className="tcg-folder-grid">
                       {tcgFolders.map((f) => {

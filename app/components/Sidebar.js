@@ -15,7 +15,7 @@ export default function Sidebar({ view, onNavigate }) {
     <aside className="sidebar">
       <div className="sidebar__brand">
         <div className="sidebar__logo">
-          <BookOpen size={19} />
+          <img src="/mascot-icon.png" alt="" />
         </div>
         <div>
           <div className="sidebar__brand-title">Mi Colección</div>
