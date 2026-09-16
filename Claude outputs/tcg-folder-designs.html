@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Carpetas TCG — variantes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#14101C;
+    --bg-soft:#0D0A14;
+    --surface:#241C30;
+    --surface-2:#2E2440;
+    --surface-hover:#392C4D;
+    --border:#493D5C;
+    --border-soft:#2E2440;
+    --text:#F5F1F8;
+    --text-muted:#B2A6C2;
+    --text-faint:#7C7090;
+    --primary:#523874;
+    --primary-hover:#3D2A57;
+    --secondary:#916CAD;
+    --accent:#ADF182;
+    --gold:#DC7D68;
+    --danger:#EF4444;
+    --shadow: 0 12px 28px rgba(0,0,0,.45);
+    --shadow-sm: 0 4px 12px rgba(0,0,0,.35);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,sans-serif;
+    padding:36px 20px 80px;
+  }
+  h1,h2,h3{ font-family:'Shippori Mincho', serif; font-weight:800; margin:0; }
+  .wrap{ max-width:640px; margin:0 auto; }
+  .intro{ margin-bottom:34px; }
+  .intro h1{ font-size:1.5rem; margin-bottom:8px; }
+  .intro p{ color:var(--text-muted); font-size:.9rem; line-height:1.55; margin:0; }
+  .section{ margin-bottom:46px; }
+  .section__head{ display:flex; align-items:baseline; gap:10px; margin-bottom:6px; }
+  .section__head h2{ font-size:1.1rem; }
+  .section__tag{
+    font-size:.66rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    background:var(--surface-2); color:var(--secondary); padding:3px 8px; border-radius:999px;
+  }
+  .section__desc{ font-size:.8rem; color:var(--text-muted); margin:0 0 16px; line-height:1.5; }
+
+  .icon{ width:18px; height:18px; flex-shrink:0; }
+
+  /* placeholder cover swatches (sin arte real todavía) */
+  .cover{
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    font-family:'Shippori Mincho', serif; font-weight:800; color:rgba(255,255,255,.92);
+    text-shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+  .cover--op{ background:linear-gradient(150deg,#DC7D68,#8B3A2E); }
+  .cover--pkm{ background:linear-gradient(150deg,#916CAD,#523874); }
+  .cover--custom{ background:linear-gradient(150deg,#ADF182,#5E9A3D); color:#16240D; text-shadow:none; }
+  .cover--empty{ background:repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 6px, rgba(255,255,255,.08) 6px 12px), #1B1B1E; }
+
+  /* ---------------- Opción A: lista compacta ---------------- */
+  .optA-list{ display:flex; flex-direction:column; border:1px solid var(--border-soft); border-radius:var(--radius); overflow:hidden; background:var(--bg-soft); }
+  .optA-row{
+    display:flex; align-items:center; gap:14px; padding:14px 16px;
+    border-bottom:1px solid var(--border-soft); background:none; cursor:pointer; text-align:left; width:100%;
+    color:inherit; transition:background .12s ease;
+  }
+  .optA-row:last-child{ border-bottom:none; }
+  .optA-row:hover{ background:var(--surface-hover); }
+  .optA-row .cover{ width:44px; height:44px; border-radius:8px; }
+  .optA-row__body{ flex:1; min-width:0; }
+  .optA-row__name{ font-size:.92rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .optA-row__code{ color:var(--text-muted); font-weight:500; }
+  .optA-row__count{ font-size:.74rem; color:var(--text-muted); margin-top:2px; }
+  .optA-row__pill{
+    font-size:.7rem; font-weight:700; color:var(--secondary); background:var(--surface-2);
+    padding:4px 9px; border-radius:999px; flex-shrink:0;
+  }
+  .optA-row__del{
+    width:30px; height:30px; border-radius:50%; border:none; background:none; color:var(--text-faint);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;
+  }
+  .optA-row__del:hover{ background:var(--danger); color:#fff; }
+  .optA-row__chev{ color:var(--text-faint); flex-shrink:0; }
+
+  /* ---------------- Opción B: tarjeta grande con acento ---------------- */
+  .optB-list{ display:flex; flex-direction:column; gap:12px; }
+  .optB-row{
+    position:relative; display:flex; align-items:center; gap:16px; padding:16px 18px 16px 20px;
+    background:var(--surface); border:1px solid var(--border-soft); border-radius:var(--radius);
+    box-shadow:var(--shadow-sm); cursor:pointer; text-align:left; width:100%; color:inherit;
+    transition:transform .12s ease, background .12s ease;
+    border-left:4px solid var(--accent-color, var(--secondary));
+  }
+  .optB-row:hover{ background:var(--surface-hover); transform:translateY(-2px); }
+  .optB-row .cover{ width:60px; height:60px; border-radius:12px; font-size:1.1rem; box-shadow:0 4px 10px rgba(0,0,0,.4); }
+  .optB-row__body{ flex:1; min-width:0; }
+  .optB-row__name{ font-family:'Shippori Mincho', serif; font-size:1.05rem; font-weight:800; line-height:1.2; }
+  .optB-row__code{ color:var(--text-muted); font-weight:600; font-size:.82rem; }
+  .optB-row__meta{ font-size:.78rem; color:var(--text-muted); margin-top:5px; }
+  .optB-row__meta b{ color:var(--text); }
+  .optB-row__side{ display:flex; flex-direction:column; align-items:center; gap:10px; flex-shrink:0; }
+  .optB-row__del{
+    width:28px; height:28px; border-radius:50%; border:none; background:rgba(20,16,28,.4); color:var(--text-faint);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .optB-row__del:hover{ background:var(--danger); color:#fff; }
+  .optB-row__chev{ color:var(--text-faint); }
+
+  /* ---------------- Opción C: lista con barra de progreso ---------------- */
+  .optC-list{ display:flex; flex-direction:column; gap:10px; }
+  .optC-row{
+    display:flex; align-items:center; gap:14px; padding:13px 16px;
+    background:var(--bg-soft); border:1px solid var(--border-soft); border-radius:12px;
+    cursor:pointer; text-align:left; width:100%; color:inherit; transition:background .12s ease;
+  }
+  .optC-row:hover{ background:var(--surface-hover); }
+  .optC-row .cover{
+    width:40px; aspect-ratio:2.5/3.5; height:auto; border-radius:6px;
+    box-shadow:0 3px 8px rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.12); font-size:.62rem;
+  }
+  .optC-row__body{ flex:1; min-width:0; }
+  .optC-row__top{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .optC-row__name{ font-size:.9rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .optC-row__pct{ font-size:.72rem; font-weight:700; color:var(--accent); flex-shrink:0; }
+  .optC-row__code{ font-size:.72rem; color:var(--text-muted); margin-top:1px; }
+  .optC-bar{ height:6px; border-radius:999px; background:var(--surface-2); margin-top:8px; overflow:hidden; }
+  .optC-bar__fill{ height:100%; border-radius:999px; background:linear-gradient(90deg,var(--secondary),var(--accent)); }
+  .optC-row__del{
+    width:28px; height:28px; border-radius:50%; border:none; background:none; color:var(--text-faint);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;
+  }
+  .optC-row__del:hover{ background:var(--danger); color:#fff; }
+
+  .footnote{ font-size:.76rem; color:var(--text-faint); text-align:center; margin-top:40px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1>Carpetas TCG — 3 variantes en lista</h1>
+    <p>Mismo contenido de siempre (portada, nombre de la expansión, código, cuántas cartas tenés) pero en filas grandes de lista en vez de la grilla de casillas chicas. Los datos de las carpetas son de ejemplo. Elegí la que más te guste, se puede mezclar cosas de una y otra.</p>
+  </div>
+
+  <div class="section">
+    <div class="section__head"><h2>Opción A</h2><span class="section__tag">Compacta</span></div>
+    <p class="section__desc">La más parecida a una lista de configuración: filas finitas, fácil escanear muchas carpetas de un vistazo. La cantidad de cartas va como una píldora a la derecha.</p>
+    <div class="optA-list">
+      <div class="optA-row">
+        <span class="cover cover--op">OP</span>
+        <span class="optA-row__body">
+          <div class="optA-row__name">Romance Dawn <span class="optA-row__code">(OP-01)</span></div>
+        </span>
+        <span class="optA-row__pill">44/121</span>
+        <button type="button" class="optA-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+        <svg class="icon optA-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="optA-row">
+        <span class="cover cover--op">OP</span>
+        <span class="optA-row__body">
+          <div class="optA-row__name">Awakening of the New Era <span class="optA-row__code">(OP-05)</span></div>
+        </span>
+        <span class="optA-row__pill">88/106</span>
+        <button type="button" class="optA-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+        <svg class="icon optA-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="optA-row">
+        <span class="cover cover--pkm">PKM</span>
+        <span class="optA-row__body">
+          <div class="optA-row__name">Base Set <span class="optA-row__code">(BS)</span></div>
+        </span>
+        <span class="optA-row__pill">92/102</span>
+        <button type="button" class="optA-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+        <svg class="icon optA-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="optA-row">
+        <span class="cover cover--custom">★</span>
+        <span class="optA-row__body">
+          <div class="optA-row__name">Mis favoritas</div>
+        </span>
+        <span class="optA-row__pill">12/12</span>
+        <button type="button" class="optA-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+        <svg class="icon optA-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section__head"><h2>Opción B</h2><span class="section__tag">Tarjeta grande</span></div>
+    <p class="section__desc">La que más se parece a la imagen que mandaste: filas separadas tipo tarjeta, portada más grande, título en la tipografía de los títulos de la app, y una franja de color al costado según el juego (One Piece / Pokémon / personalizada).</p>
+    <div class="optB-list">
+      <div class="optB-row" style="--accent-color:#DC7D68">
+        <span class="cover cover--op">OP</span>
+        <span class="optB-row__body">
+          <div class="optB-row__name">Romance Dawn</div>
+          <div class="optB-row__code">One Piece TCG · OP-01</div>
+          <div class="optB-row__meta"><b>44/121</b> cartas · 36% completa</div>
+        </span>
+        <span class="optB-row__side">
+          <button type="button" class="optB-row__del" title="Borrar carpeta">
+            <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+          <svg class="icon optB-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+      <div class="optB-row" style="--accent-color:#DC7D68">
+        <span class="cover cover--op">OP</span>
+        <span class="optB-row__body">
+          <div class="optB-row__name">Awakening of the New Era</div>
+          <div class="optB-row__code">One Piece TCG · OP-05</div>
+          <div class="optB-row__meta"><b>88/106</b> cartas · 83% completa</div>
+        </span>
+        <span class="optB-row__side">
+          <button type="button" class="optB-row__del" title="Borrar carpeta">
+            <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+          <svg class="icon optB-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+      <div class="optB-row" style="--accent-color:#916CAD">
+        <span class="cover cover--pkm">PKM</span>
+        <span class="optB-row__body">
+          <div class="optB-row__name">Base Set</div>
+          <div class="optB-row__code">Pokémon TCG · BS</div>
+          <div class="optB-row__meta"><b>92/102</b> cartas · 90% completa</div>
+        </span>
+        <span class="optB-row__side">
+          <button type="button" class="optB-row__del" title="Borrar carpeta">
+            <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+          <svg class="icon optB-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+      <div class="optB-row" style="--accent-color:#ADF182">
+        <span class="cover cover--custom">★</span>
+        <span class="optB-row__body">
+          <div class="optB-row__name">Mis favoritas</div>
+          <div class="optB-row__code">Carpeta personalizada</div>
+          <div class="optB-row__meta"><b>12/12</b> cartas · 100% completa</div>
+        </span>
+        <span class="optB-row__side">
+          <button type="button" class="optB-row__del" title="Borrar carpeta">
+            <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+          <svg class="icon optB-row__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section__head"><h2>Opción C</h2><span class="section__tag">Con barra de progreso</span></div>
+    <p class="section__desc">Filas medianas con una barra de progreso abajo del título, para ver de un vistazo qué tan completa está cada carpeta sin tener que leer el número.</p>
+    <div class="optC-list">
+      <div class="optC-row">
+        <span class="cover cover--op">OP</span>
+        <span class="optC-row__body">
+          <div class="optC-row__top">
+            <span class="optC-row__name">Romance Dawn</span>
+            <span class="optC-row__pct">36%</span>
+          </div>
+          <div class="optC-row__code">OP-01 · 44/121 cartas</div>
+          <div class="optC-bar"><div class="optC-bar__fill" style="width:36%"></div></div>
+        </span>
+        <button type="button" class="optC-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+      <div class="optC-row">
+        <span class="cover cover--op">OP</span>
+        <span class="optC-row__body">
+          <div class="optC-row__top">
+            <span class="optC-row__name">Awakening of the New Era</span>
+            <span class="optC-row__pct">83%</span>
+          </div>
+          <div class="optC-row__code">OP-05 · 88/106 cartas</div>
+          <div class="optC-bar"><div class="optC-bar__fill" style="width:83%"></div></div>
+        </span>
+        <button type="button" class="optC-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+      <div class="optC-row">
+        <span class="cover cover--pkm">PKM</span>
+        <span class="optC-row__body">
+          <div class="optC-row__top">
+            <span class="optC-row__name">Base Set</span>
+            <span class="optC-row__pct">90%</span>
+          </div>
+          <div class="optC-row__code">BS · 92/102 cartas</div>
+          <div class="optC-bar"><div class="optC-bar__fill" style="width:90%"></div></div>
+        </span>
+        <button type="button" class="optC-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+      <div class="optC-row">
+        <span class="cover cover--empty"></span>
+        <span class="optC-row__body">
+          <div class="optC-row__top">
+            <span class="optC-row__name">Paldea Evolved</span>
+            <span class="optC-row__pct">Vacía</span>
+          </div>
+          <div class="optC-row__code">SV02 · 0 cartas</div>
+          <div class="optC-bar"><div class="optC-bar__fill" style="width:0%"></div></div>
+        </span>
+        <button type="button" class="optC-row__del" title="Borrar carpeta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">Vista de ejemplo — sin conexión a tu colección real. Decime cuál te gusta (o si querés combinar, por ejemplo la franja de color de B con la barra de progreso de C) y lo implemento en el código.</p>
+</div>
+</body>
+</html>
