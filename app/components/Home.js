@@ -1,12 +1,34 @@
 "use client";
 
 import { useMemo } from "react";
-import { BookOpen, Tv, Gamepad2, Library } from "lucide-react";
+import { BookOpen, Tv, Gamepad2 } from "lucide-react";
 import { PosterCard } from "./CardGrid";
+
+// El último título de cada categoría (por fecha en que lo agregaste) se usa
+// como fondo de su tarjeta en "Tus colecciones" — un degradé bien oscuro
+// arriba para que el número y el ícono blancos se sigan leyendo con
+// cualquier portada.
+function latestOf(list) {
+  if (!list.length) return null;
+  return [...list].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+}
+
+function coverStyle(latest) {
+  if (!latest?.coverUrl) return undefined;
+  return {
+    backgroundImage: `linear-gradient(160deg, rgba(13,10,20,.7), rgba(13,10,20,.9)), url('${latest.coverUrl.replace(/'/g, "%27")}')`,
+    backgroundSize: "cover",
+    backgroundPosition: "center"
+  };
+}
 
 export default function Home({ items, animes, onNavigate, onOpen }) {
   const mangaItems = useMemo(() => items.filter((i) => i.category === "manga"), [items]);
   const gameItems = useMemo(() => items.filter((i) => i.category === "videojuego"), [items]);
+
+  const latestManga = useMemo(() => latestOf(mangaItems), [mangaItems]);
+  const latestAnime = useMemo(() => latestOf(animes), [animes]);
+  const latestGame = useMemo(() => latestOf(gameItems), [gameItems]);
 
   const recientes = useMemo(() => {
     const tagged = [
@@ -72,32 +94,40 @@ export default function Home({ items, animes, onNavigate, onOpen }) {
           <h2>Tus colecciones</h2>
         </div>
         <div className="quick-cards">
-          <button type="button" className="quick-card quick-card--manga" onClick={() => onNavigate("manga")}>
+          <button
+            type="button"
+            className="quick-card quick-card--manga"
+            style={coverStyle(latestManga)}
+            onClick={() => onNavigate("manga")}
+          >
             <BookOpen size={22} />
             <div>
               <b>{mangaItems.length}</b>
               <span>Manga</span>
             </div>
           </button>
-          <button type="button" className="quick-card quick-card--anime" onClick={() => onNavigate("anime")}>
+          <button
+            type="button"
+            className="quick-card quick-card--anime"
+            style={coverStyle(latestAnime)}
+            onClick={() => onNavigate("anime")}
+          >
             <Tv size={22} />
             <div>
               <b>{animes.length}</b>
               <span>Anime</span>
             </div>
           </button>
-          <button type="button" className="quick-card quick-card--videojuego" onClick={() => onNavigate("videojuego")}>
+          <button
+            type="button"
+            className="quick-card quick-card--videojuego"
+            style={coverStyle(latestGame)}
+            onClick={() => onNavigate("videojuego")}
+          >
             <Gamepad2 size={22} />
             <div>
               <b>{gameItems.length}</b>
               <span>Videojuegos</span>
-            </div>
-          </button>
-          <button type="button" className="quick-card quick-card--biblioteca" onClick={() => onNavigate("biblioteca")}>
-            <Library size={22} />
-            <div>
-              <b>{items.length}</b>
-              <span>Biblioteca completa</span>
             </div>
           </button>
         </div>

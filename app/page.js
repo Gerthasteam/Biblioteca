@@ -624,42 +624,47 @@ export default function App() {
                       </p>
                     </div>
                   ) : (
-                    <div className="tcg-folder-grid">
+                    <div className="tcg-folder-list">
                       {tcgFolders.map((f) => {
                         const owned = f.items.filter((it) => it.status === "completo").length;
+                        const total = f.items.length;
+                        const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
                         const cover = f.items[0]?.coverUrl;
+                        const code = !f.custom && formatSetCode(f.setId);
+                        const meta = [code, total === 0 ? "0 cartas" : `${owned}/${total} cartas`]
+                          .filter(Boolean)
+                          .join(" · ");
                         return (
-                          <div key={f.key} className="tcg-folder-tile">
+                          <div key={f.key} className="tcg-folder-row">
                             <button
                               type="button"
-                              className="tcg-folder-tile__open"
+                              className="tcg-folder-row__open"
                               onClick={() => setActiveTcgFolder(f)}
                             >
-                              {cover ? (
-                                <img src={cover} alt="" className="tcg-folder-tile__logo" />
-                              ) : (
-                                <Folder size={28} />
-                              )}
-                              <div className="tcg-folder-tile__name">
-                                {f.setName}
-                                {!f.custom && formatSetCode(f.setId) && (
-                                  <span className="tcg-folder-tile__code"> ({formatSetCode(f.setId)})</span>
-                                )}
-                              </div>
-                              <div className="tcg-folder-tile__count">
-                                {f.items.length === 0 ? "Vacía" : `${owned}/${f.items.length} cartas`}
-                              </div>
+                              <span className="tcg-folder-row__cover">
+                                {cover ? <img src={cover} alt="" /> : <Folder size={18} />}
+                              </span>
+                              <span className="tcg-folder-row__body">
+                                <span className="tcg-folder-row__top">
+                                  <span className="tcg-folder-row__name">{f.setName}</span>
+                                  <span className="tcg-folder-row__pct">{total === 0 ? "Vacía" : `${pct}%`}</span>
+                                </span>
+                                <span className="tcg-folder-row__meta">{meta}</span>
+                                <span className="tcg-folder-row__bar">
+                                  <span className="tcg-folder-row__bar-fill" style={{ width: pct + "%" }} />
+                                </span>
+                              </span>
                             </button>
                             <button
                               type="button"
-                              className="tcg-folder-tile__delete"
+                              className="tcg-folder-row__delete"
                               title="Borrar carpeta"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteTcgFolder(f, f.items.map((it) => it.id));
                               }}
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         );
