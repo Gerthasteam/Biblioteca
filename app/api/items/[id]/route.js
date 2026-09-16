@@ -17,11 +17,13 @@ export async function PATCH(req, { params }) {
     const rating = Number.isFinite(body.rating) ? body.rating : 0;
     const notes = body.notes || "";
     const coverUrl = body.coverUrl || null;
+    const description = (body.description || "").slice(0, 280);
 
     const { rows } = await sql`
       UPDATE items SET
         title=${title}, category=${category}, status=${status}, unit=${unit},
-        current=${current}, total=${total}, rating=${rating}, notes=${notes}, cover_url=${coverUrl}
+        current=${current}, total=${total}, rating=${rating}, notes=${notes}, cover_url=${coverUrl},
+        description=${description}
       WHERE id=${id}
       RETURNING *`;
     if (!rows[0]) return Response.json({ error: "not_found" }, { status: 404 });

@@ -21,6 +21,7 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
   const [rating, setRating] = useState(editing ? editing.rating : 0);
   const [notes, setNotes] = useState(editing ? editing.notes : "");
   const [coverUrl, setCoverUrl] = useState(editing ? editing.coverUrl || "" : "");
+  const [description, setDescription] = useState(editing ? editing.description || "" : "");
   const [saving, setSaving] = useState(false);
 
   function submit(e) {
@@ -41,7 +42,8 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
       total: total === "" ? null : parseInt(total, 10),
       rating,
       notes: finalNotes,
-      coverUrl: coverUrl.trim() || null
+      coverUrl: coverUrl.trim() || null,
+      description: category === "manga" ? description.trim().slice(0, 250) : ""
     });
   }
 
@@ -69,6 +71,7 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
                 setTitle(r.title);
                 if (r.cover) setCoverUrl(r.cover);
                 if (r.total && total === "") setTotal(r.total);
+                if (r.description) setDescription(r.description);
               }}
             />
           )}
@@ -190,6 +193,20 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
               value={total}
               onChange={(e) => setTotal(e.target.value)}
             />
+          </div>
+        )}
+
+        {category === "manga" && (
+          <div className="field">
+            <label htmlFor="itemDescription">Descripción breve (opcional)</label>
+            <textarea
+              id="itemDescription"
+              maxLength={250}
+              placeholder="Se completa sola si elegís un resultado de la búsqueda de arriba, o escribila vos"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            <span className="field__hint">{description.length}/250</span>
           </div>
         )}
 

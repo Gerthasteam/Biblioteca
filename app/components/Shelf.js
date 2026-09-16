@@ -1,8 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { spineWidth, spineBackground, spineHeadband, posterBackground } from "../../lib/ui";
 import { useDragReorder } from "../../lib/useDragReorder";
+
+// La vista previa grande al pasar el mouse solo tiene sentido con mouse de
+// verdad. En celular, tocar el lomo dispara "hover" (foco) Y el click casi
+// al mismo tiempo, así que se veía la portada grande Y se abría el detalle
+// juntos. La detectamos con matchMedia así solo queda el toque → detalle.
+function useCanHover() {
+  const [canHover, setCanHover] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setCanHover(mq.matches);
+    update();
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+      else mq.removeListener(update);
+    };
+  }, []);
+  return canHover;
+}
 
 function Spine({ it, onClick, isExample, onHover, onLeave, reorderable, dragging, dragHandlers }) {
   const w = spineWidth(it);
@@ -34,10 +54,12 @@ function Spine({ it, onClick, isExample, onHover, onLeave, reorderable, dragging
 
 export default function Shelf({ items, isExample, onOpen, reorderable, onReorder }) {
   const [hover, setHover] = useState(null); // { it, left, top }
+  const canHover = useCanHover();
   const drag = useDragReorder(items, (it) => it.id, onReorder || (() => {}));
   const list = reorderable ? drag.list : items;
 
   function handleHover(it, el) {
+    if (!canHover) return;
     const rect = el.getBoundingClientRect();
     const previewW = 150;
     const gap = 14;

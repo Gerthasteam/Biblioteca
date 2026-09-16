@@ -29,11 +29,12 @@ export async function POST(req) {
     const rating = Number.isFinite(body.rating) ? body.rating : 0;
     const notes = body.notes || "";
     const coverUrl = body.coverUrl || null;
+    const description = (body.description || "").slice(0, 280);
 
     const { rows } = await sql`
-      INSERT INTO items (title, category, status, unit, current, total, rating, notes, cover_url, sort_order)
+      INSERT INTO items (title, category, status, unit, current, total, rating, notes, cover_url, description, sort_order)
       VALUES (
-        ${title}, ${category}, ${status}, ${unit}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl},
+        ${title}, ${category}, ${status}, ${unit}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl}, ${description},
         COALESCE((SELECT MAX(sort_order) + 1 FROM items WHERE category = ${category}), 0)
       )
       RETURNING *`;

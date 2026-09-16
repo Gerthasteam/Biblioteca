@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { BookOpen, Tv, Gamepad2, Library, Image as ImageIcon } from "lucide-react";
+import { BookOpen, Tv, Gamepad2, Library } from "lucide-react";
 import { PosterCard } from "./CardGrid";
 
-export default function Home({ items, animes, onNavigate, onOpen, onShareImage }) {
+export default function Home({ items, animes, onNavigate, onOpen }) {
   const mangaItems = useMemo(() => items.filter((i) => i.category === "manga"), [items]);
   const gameItems = useMemo(() => items.filter((i) => i.category === "videojuego"), [items]);
 
@@ -46,12 +46,6 @@ export default function Home({ items, animes, onNavigate, onOpen, onShareImage }
               <span>Videojuegos</span>
             </div>
           </div>
-        </div>
-        <div className="hero__actions">
-          <button type="button" className="btn subtle" onClick={onShareImage}>
-            <ImageIcon size={14} />
-            Imagen de tu estante
-          </button>
         </div>
       </section>
 

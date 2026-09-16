@@ -14,9 +14,24 @@ query ($search: String, $type: MediaType) {
       chapters
       volumes
       episodes
+      description(asHtml: false)
     }
   }
 }`;
+
+// La sinopsis de AniList viene larga (y a veces con alguna etiqueta suelta
+// tipo <br>/<i> aunque pidamos texto plano) — la limpiamos y recortamos a
+// ~250 caracteres, cortando en un espacio para no partir una palabra.
+function shortDescription(raw) {
+  if (!raw) return null;
+  const text = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  const LIMIT = 250;
+  if (text.length <= LIMIT) return text;
+  const cut = text.slice(0, LIMIT);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > LIMIT * 0.6 ? cut.slice(0, lastSpace) : cut).trim() + "…";
+}
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -47,7 +62,8 @@ async function searchAniList(q, type) {
       title: m.title.english || m.title.romaji,
       cover: m.coverImage?.large || null,
       year: m.startDate?.year || null,
-      total: type === "ANIME" ? m.episodes || null : m.volumes || m.chapters || null
+      total: type === "ANIME" ? m.episodes || null : m.volumes || m.chapters || null,
+      description: shortDescription(m.description)
     }));
     return Response.json({ results });
   } catch {

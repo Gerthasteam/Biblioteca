@@ -12,33 +12,35 @@ export const NAV_ITEMS = [
 
 export default function Sidebar({ view, onNavigate }) {
   return (
-    <aside className="sidebar">
-      <div className="sidebar__brand">
-        <div className="sidebar__logo">
-          <img src="/mascot-icon.png" alt="" />
-        </div>
-        <div>
-          <div className="sidebar__brand-title">Mi Colección</div>
-          <div className="sidebar__brand-tag">Manga · Anime · Videojuegos</div>
-        </div>
-      </div>
+    <header className="sidebar">
+      <div className="sidebar__inner">
+        <button type="button" className="sidebar__brand" onClick={() => onNavigate("home")}>
+          <img className="sidebar__brand-icon" src="/mascot-icon.png" alt="" />
+          <div>
+            <div className="sidebar__brand-title">
+              Mi <span>Colección</span>
+            </div>
+            <div className="sidebar__brand-tag">Manga · Anime · Videojuegos</div>
+          </div>
+        </button>
 
-      <nav className="nav">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              className={"nav__item" + (view === item.key ? " active" : "")}
-              onClick={() => onNavigate(item.key)}
-            >
-              <Icon size={18} />
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
-    </aside>
+        <nav className="nav">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                className={"nav__item" + (view === item.key ? " active" : "")}
+                onClick={() => onNavigate(item.key)}
+              >
+                <Icon size={18} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
   );
 }

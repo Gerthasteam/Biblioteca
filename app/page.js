@@ -13,7 +13,6 @@ import AnimeModal from "./components/AnimeModal";
 import DetailModal from "./components/DetailModal";
 import TcgFolderModal from "./components/TcgFolderModal";
 import SteamImportModal from "./components/SteamImportModal";
-import ShelfImageModal from "./components/ShelfImageModal";
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
 
@@ -55,7 +54,6 @@ export default function App() {
   const [folderModal, setFolderModal] = useState(null); // { game } | null
   const [activeTcgFolder, setActiveTcgFolder] = useState(null); // { key, game, setId, setName } | null
   const [steamImportOpen, setSteamImportOpen] = useState(false);
-  const [shelfImageOpen, setShelfImageOpen] = useState(false);
 
   function flashToast(msg) {
     setToast(msg);
@@ -402,24 +400,22 @@ export default function App() {
     <div className="app-shell">
       <Sidebar view={view} onNavigate={navigate} />
 
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <header className="topbar">
-          <div className="topbar__brand">
-            <div className="topbar__logo">
-              <img src="/mascot-icon.png" alt="" />
-            </div>
-            <div className="topbar__title">Mi Colección</div>
+      <header className="topbar">
+        <div className="topbar__brand">
+          <div className="topbar__logo">
+            <img src="/mascot-icon.png" alt="" />
           </div>
-        </header>
+          <div className="topbar__title">Mi Colección</div>
+        </div>
+      </header>
 
-        <main className="main">
-          {view === "home" && (
+      <main className="main">
+        {view === "home" && (
             <Home
               items={items}
               animes={animes}
               onNavigate={navigate}
               onOpen={openDetail}
-              onShareImage={() => setShelfImageOpen(true)}
             />
           )}
 
@@ -698,8 +694,7 @@ export default function App() {
                 ))}
             </>
           )}
-        </main>
-      </div>
+      </main>
 
       <BottomNav view={view} onNavigate={navigate} />
 
@@ -753,8 +748,6 @@ export default function App() {
           onImport={importSteamGames}
         />
       )}
-
-      {shelfImageOpen && <ShelfImageModal items={items} animes={animes} onClose={() => setShelfImageOpen(false)} />}
 
       {toast && <div className="toast">{toast}</div>}
     </div>

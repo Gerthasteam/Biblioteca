@@ -34,6 +34,11 @@ export default function DetailModal({ kind, record, onClose, onEdit, onDelete, o
             {statusLabel}
           </span>
         </div>
+        {record.description && (
+          <p style={{ fontSize: ".86rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
+            {record.description}
+          </p>
+        )}
         <div className="detail-progress">
           <div className="big">{unit} {record.current}</div>
           <div className="sub">{record.total != null ? `de ${record.total} en total` : "sin total cargado"}</div>
@@ -48,7 +53,7 @@ export default function DetailModal({ kind, record, onClose, onEdit, onDelete, o
           </div>
         </div>
         <div className="stars-line" style={{ fontSize: "1.15rem" }}>{stars(record.rating || 0)}</div>
-        {record.notes && <p style={{ fontSize: ".88rem", color: "var(--ink-muted)", whiteSpace: "pre-wrap", margin: 0 }}>{record.notes}</p>}
+        {record.notes && <p style={{ fontSize: ".88rem", color: "var(--text-muted)", whiteSpace: "pre-wrap", margin: 0 }}>{record.notes}</p>}
         <div className="modal__actions">
           <button type="button" className="btn subtle" onClick={onDelete}>Eliminar</button>
           <div className="modal__actions-right">

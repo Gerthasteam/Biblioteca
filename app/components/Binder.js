@@ -5,7 +5,26 @@ import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { posterBackground } from "../../lib/ui";
 import { useDragReorder } from "../../lib/useDragReorder";
 
-const SLOTS_PER_PAGE = 9; // hoja "9-pocket" estándar de carpeta para cartas (3x3)
+const SLOTS_DESKTOP = 9; // hoja "9-pocket" estándar de carpeta para cartas (3x3)
+const SLOTS_MOBILE = 4; // en celular 9 quedaban chiquitas — 2x2 más grandes y fáciles de tocar
+
+// Coincide con el breakpoint de @media (max-width:560px) en globals.css,
+// que es donde el grid de la hoja pasa de 3 a 2 columnas.
+function useSlotsPerPage() {
+  const [slots, setSlots] = useState(SLOTS_DESKTOP);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 560px)");
+    const update = () => setSlots(mq.matches ? SLOTS_MOBILE : SLOTS_DESKTOP);
+    update();
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+      else mq.removeListener(update);
+    };
+  }, []);
+  return slots;
+}
 
 function Pocket({ it, isExample, onToggle, onEdit, reorderable, dragging, dragHandlers }) {
   if (!it) return <div className="binder-pocket binder-pocket--empty" />;
@@ -50,11 +69,12 @@ function Pocket({ it, isExample, onToggle, onEdit, reorderable, dragging, dragHa
 // Click sobre la carta prende/apaga si la tenés o no; el lápiz abre el
 // detalle para editarla.
 export default function Binder({ items, isExample, onToggleOwned, onEdit, reorderable, onReorder }) {
+  const slotsPerPage = useSlotsPerPage();
   const drag = useDragReorder(items, (it) => it.id, onReorder || (() => {}));
   const list = reorderable ? drag.list : items;
 
   const pages = [];
-  for (let i = 0; i < list.length; i += SLOTS_PER_PAGE) pages.push(list.slice(i, i + SLOTS_PER_PAGE));
+  for (let i = 0; i < list.length; i += slotsPerPage) pages.push(list.slice(i, i + slotsPerPage));
   if (pages.length === 0) pages.push([]);
 
   const [pageIndex, setPageIndex] = useState(0);
@@ -85,7 +105,7 @@ export default function Binder({ items, isExample, onToggleOwned, onEdit, reorde
           <span />
         </div>
         <div className="binder-grid">
-          {Array.from({ length: SLOTS_PER_PAGE }).map((_, i) => (
+          {Array.from({ length: slotsPerPage }).map((_, i) => (
             <Pocket
               key={page[i]?.id ?? `p${pageIndex}-${i}`}
               it={page[i]}
