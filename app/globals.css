@@ -211,6 +211,11 @@ a{ color:inherit; }
   box-shadow:var(--shadow-sm); position:relative; overflow:hidden; border:1px solid var(--border-soft);
   transition:transform .15s ease;
 }
+/* portada de videojuego (apaisada) completa y sin recortar, con el resto
+   del marco relleno en vez de estirar/recortar la imagen */
+.poster-card__img--contain{
+  background-size:contain; background-repeat:no-repeat; background-color:var(--bg-soft);
+}
 .poster-card:hover .poster-card__img{ transform:translateY(-3px); }
 .poster-card__badge{
   position:absolute; top:7px; right:7px; width:9px; height:9px; border-radius:50%;

@@ -431,7 +431,7 @@ export default function App() {
               <section className="toolbar">
                 <div className="toolbar__filters">
                   {view === "biblioteca" &&
-                    ["manga", "tcg", "videojuego", "otro"].map((c) => (
+                    ["manga", "tcg", "otro"].map((c) => (
                       <button
                         key={c}
                         type="button"

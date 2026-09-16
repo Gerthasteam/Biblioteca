@@ -15,10 +15,15 @@ function latestOf(list) {
 
 function coverStyle(latest) {
   if (!latest?.coverUrl) return undefined;
+  // Las portadas de videojuego son apaisadas, no verticales como las de
+  // manga/anime — con "cover" se recortaban feo, así que a esas se las
+  // muestra completas (contain) en vez de rellenar todo el recuadro.
+  const contain = latest.category === "videojuego";
   return {
     backgroundImage: `linear-gradient(160deg, rgba(13,10,20,.7), rgba(13,10,20,.9)), url('${latest.coverUrl.replace(/'/g, "%27")}')`,
-    backgroundSize: "cover",
-    backgroundPosition: "center"
+    backgroundSize: contain ? "contain" : "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: contain ? "no-repeat" : undefined
   };
 }
 

@@ -6,6 +6,11 @@ import { useDragReorder } from "../../lib/useDragReorder";
 export function PosterCard({ record, kind, isExample, onOpen, reorderable, dragging, dragHandlers }) {
   const unit = kind === "anime" ? "Ep." : record.unit || CATEGORY_UNIT[record.category] || "";
   const label = progressLabel(record.current, record.total, unit);
+  // Las portadas de videojuego vienen de Steam/RAWG en formato apaisado —
+  // bien distinto del 2:3 vertical de manga/anime. Con "cover" quedaban
+  // recortadas casi hasta perder el logo, así que a esas las mostramos
+  // completas (sin recortar) en vez de rellenar todo el marco.
+  const fitContain = record.category === "videojuego";
   return (
     <button
       type="button"
@@ -16,7 +21,10 @@ export function PosterCard({ record, kind, isExample, onOpen, reorderable, dragg
       style={reorderable ? { opacity: dragging ? 0.35 : 1, cursor: "grab" } : undefined}
       {...(reorderable ? dragHandlers : {})}
     >
-      <div className="poster-card__img" style={{ backgroundImage: posterBackground(record) }}>
+      <div
+        className={"poster-card__img" + (fitContain ? " poster-card__img--contain" : "")}
+        style={{ backgroundImage: posterBackground(record) }}
+      >
         <span className="poster-card__badge" style={{ background: statusDotColor(record.status) }} />
       </div>
       <div className="poster-card__title">{(isExample ? "EJEMPLO · " : "") + record.title}</div>
