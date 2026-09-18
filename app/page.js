@@ -540,7 +540,7 @@ export default function App() {
                 </p>
               )}
 
-              {view === "manga" && mangaItems.length > 0 && (
+              {view === "manga" && (
                 <div className="tcg-game-row">
                   <button type="button" className="btn subtle" onClick={() => setRecommendOpen(true)}>
                     <Sparkles size={14} />
@@ -819,14 +819,7 @@ export default function App() {
       )}
 
       {recommendOpen && (
-        <RecommendationModal
-          mangaItems={mangaItems}
-          onClose={() => setRecommendOpen(false)}
-          onOpenDetail={(id) => {
-            setRecommendOpen(false);
-            openDetail("item", id);
-          }}
-        />
+        <RecommendationModal mangaItems={mangaItems} onClose={() => setRecommendOpen(false)} />
       )}
 
       {toast && <div className="toast">{toast}</div>}
