@@ -1,20 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Shuffle, BookOpen } from "lucide-react";
+import { Shuffle, BookOpen, ExternalLink } from "lucide-react";
 
-// Mascota chibi + un globo de diálogo con un manga de ZonaTMO que todavía no
-// tenés cargado — no elige entre los tuyos, te tira algo nuevo para
-// descubrir (y un link directo para leerlo).
+// Mascota chibi + un globo de diálogo con un manga que todavía no tenés
+// cargado — no elige entre los tuyos, te tira algo nuevo para descubrir.
+// La recomendación sale de AniList (misma API que ya usa el buscador de
+// portadas): antes probamos con la biblioteca de ZonaTMO, pero esos pedidos
+// parecen quedar bloqueados justo cuando salen desde el servidor de Vercel
+// — andaba bien probado a mano y siempre vacío ya desplegado. Como bonus,
+// una vez que sabemos qué manga tocó, probamos (sin bloquear la respuesta)
+// si ese título tiene ficha en ZonaTMO para leer directo; si ZonaTMO no
+// responde simplemente no aparece ese botón extra.
 export default function RecommendationModal({ mangaItems, onClose }) {
   // "loading" | "ok" | "empty" | "error"
   const [status, setStatus] = useState("loading");
   const [manga, setManga] = useState(null);
+  const [zonatmoUrl, setZonatmoUrl] = useState(null);
 
   async function fetchRecommendation() {
     setStatus("loading");
+    setZonatmoUrl(null);
     try {
-      const res = await fetch("/api/zonatmo/random", {
+      const res = await fetch("/api/anilist/random", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ownedTitles: mangaItems.map((i) => i.title) })
@@ -23,6 +31,12 @@ export default function RecommendationModal({ mangaItems, onClose }) {
       if (json.manga) {
         setManga(json.manga);
         setStatus("ok");
+        fetch(`/api/zonatmo/search?title=${encodeURIComponent(json.manga.title)}`)
+          .then((r) => r.json())
+          .then((zj) => {
+            if (zj.url) setZonatmoUrl(zj.url);
+          })
+          .catch(() => {});
       } else {
         setManga(null);
         setStatus("empty");
@@ -46,19 +60,19 @@ export default function RecommendationModal({ mangaItems, onClose }) {
 
         {status === "loading" && (
           <p className="empty-note" style={{ margin: 0 }}>
-            Buscando algo nuevo en ZonaTMO…
+            Buscando algo nuevo…
           </p>
         )}
 
         {status === "error" && (
           <p className="empty-note" style={{ margin: 0 }}>
-            No se pudo conectar con ZonaTMO. Probá de nuevo en un rato.
+            No se pudo conseguir una recomendación ahora. Probá de nuevo en un rato.
           </p>
         )}
 
         {status === "empty" && (
           <p className="empty-note" style={{ margin: 0 }}>
-            No encontramos en ZonaTMO ningún manga que ya no tengas cargado. Probá de nuevo en un rato.
+            No encontramos ningún manga que ya no tengas cargado. Probá de nuevo en un rato.
           </p>
         )}
 
@@ -85,8 +99,14 @@ export default function RecommendationModal({ mangaItems, onClose }) {
             <button type="button" className="btn subtle" onClick={onClose}>
               Cerrar
             </button>
-            {status === "ok" && manga && (
-              <a href={manga.url} target="_blank" rel="noopener noreferrer" className="btn zonatmo-link">
+            {status === "ok" && manga?.url && (
+              <a href={manga.url} target="_blank" rel="noopener noreferrer" className="btn subtle zonatmo-link">
+                <ExternalLink size={14} />
+                Ver en AniList
+              </a>
+            )}
+            {status === "ok" && zonatmoUrl && (
+              <a href={zonatmoUrl} target="_blank" rel="noopener noreferrer" className="btn zonatmo-link">
                 <BookOpen size={14} />
                 Leer en ZonaTMO
               </a>
