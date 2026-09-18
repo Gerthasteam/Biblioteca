@@ -1,12 +1,16 @@
 // Busca un manga por título en ZonaTMO (zonatmo.org) y devuelve el link a su
 // ficha si encuentra una coincidencia razonable. Server-side por el mismo
-// motivo que el resto de /api/*: evita CSP del navegador. ZonaTMO no tiene
-// una API pública, así que se parsea el HTML de su buscador (/biblioteca)
-// con una expresión regular simple en vez de sumar una librería nueva al
-// proyecto (así no hace falta tocar package-lock.json para este cambio).
+// motivo que el resto de /api/*: evita CSP del navegador.
+//
+// Usa /api/search/suggest?q=<título> — el mismo endpoint JSON que usa la
+// app oficial de ZonaTMO para autocompletar la barra de búsqueda. Antes
+// intentábamos adivinar el resultado parseando con regex el HTML de
+// /biblioteca, pero esa página arma la lista de mangas con JavaScript
+// después de cargar (el HTML que devuelve el server no trae nada todavía),
+// así que nunca encontraba nada. Este endpoint sí devuelve JSON directo.
 //
 // Si algo falla (el sitio no responde, tiene protección anti-bots, cambió su
-// HTML, o no hay ninguna coincidencia razonable) devuelve { url: null } en
+// API, o no hay ninguna coincidencia razonable) devuelve { url: null } en
 // vez de tirar error — del lado del cliente eso simplemente hace que no se
 // muestre el botón "Leer en ZonaTMO", nunca rompe nada.
 function normalize(s) {
@@ -18,39 +22,35 @@ function normalize(s) {
     .trim();
 }
 
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const title = (searchParams.get("title") || "").trim();
     if (!title) return Response.json({ url: null });
 
-    const searchUrl = `https://zonatmo.org/biblioteca?title=${encodeURIComponent(title)}`;
-    const res = await fetch(searchUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml"
-      },
+    const wanted = normalize(title);
+    if (!wanted) return Response.json({ url: null });
+
+    const suggestUrl = `https://zonatmo.org/api/search/suggest?q=${encodeURIComponent(title)}`;
+    const res = await fetch(suggestUrl, {
+      headers: { "User-Agent": UA, Accept: "application/json" },
       cache: "no-store"
     });
     if (!res.ok) return Response.json({ url: null });
 
-    const html = await res.text();
-    const wanted = normalize(title);
-    if (!wanted) return Response.json({ url: null });
+    const suggestions = await res.json().catch(() => null);
+    if (!Array.isArray(suggestions)) return Response.json({ url: null });
 
-    const linkRegex = /href="(\/library\/[^"]+)"/g;
-    let match;
     let bestUrl = null;
-    while ((match = linkRegex.exec(html))) {
-      const href = match[1];
-      const chunk = html.slice(match.index, match.index + 900);
-      const titleMatch = chunk.match(/<h4[^>]*>([^<]+)<\/h4>/);
-      if (!titleMatch) continue;
-      const foundNorm = normalize(titleMatch[1]);
-      if (!foundNorm) continue;
+    for (const s of suggestions) {
+      const foundNorm = normalize(s?.title || "");
+      const rawUrl = s?.url || "";
+      if (!foundNorm || !rawUrl || !rawUrl.includes("/library/")) continue;
       if (foundNorm === wanted || foundNorm.includes(wanted) || wanted.includes(foundNorm)) {
-        bestUrl = `https://zonatmo.org${href}`;
+        bestUrl = rawUrl.startsWith("http") ? rawUrl : `https://zonatmo.org${rawUrl}`;
         break;
       }
     }

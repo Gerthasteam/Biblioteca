@@ -1,15 +1,15 @@
 // Recomienda un manga de ZonaTMO que la persona todavía NO tenga cargado en
 // su colección — a diferencia de /api/zonatmo/search (que busca un título
-// puntual), esta ruta trae una tanda de mangas populares de la biblioteca de
-// ZonaTMO y elige uno al azar entre los que no coinciden con ningún título
-// que ya tengas.
+// puntual con el buscador de la barra), esta ruta trae una tanda de mangas
+// populares de la biblioteca de ZonaTMO y elige uno al azar entre los que no
+// coinciden con ningún título que ya tengas.
 //
-// Igual que /api/zonatmo/search: no hay API pública, así que se parsea el
-// HTML de /biblioteca con una expresión regular simple (nada de librerías
-// nuevas). Si el sitio no responde, tiene protección anti-bots, o no
-// encuentra ningún candidato nuevo, devuelve { manga: null } — del lado del
-// cliente eso se traduce en un mensaje ("no se pudo conseguir una
-// recomendación ahora"), nunca en un error feo.
+// La página /biblioteca arma esa lista con JavaScript después de cargar: el
+// primer HTML que manda el servidor viene vacío, y recién se llena cuando el
+// navegador pide de nuevo la misma URL pero marcada como pedido AJAX
+// (header "X-Requested-With: XMLHttpRequest") — ahí el servidor responde un
+// JSON con el HTML de la grilla adentro ({ html: "..." }). Sin ese header no
+// hay ningún manga en la respuesta, por eso antes esto siempre daba vacío.
 function normalize(s) {
   return s
     .toLowerCase()
@@ -17,6 +17,31 @@ function normalize(s) {
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+async function fetchLibraryHtml(url) {
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": UA,
+      Accept: "application/json, text/html, */*",
+      "X-Requested-With": "XMLHttpRequest",
+      Referer: "https://zonatmo.org/biblioteca"
+    },
+    cache: "no-store"
+  });
+  if (!res.ok) return null;
+
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const json = await res.json().catch(() => null);
+    return typeof json?.html === "string" ? json.html : null;
+  }
+  // Por las dudas de que el sitio cambie y deje de envolver en JSON, si no
+  // vino como JSON lo tratamos directo como HTML.
+  return await res.text();
 }
 
 export async function POST(req) {
@@ -34,17 +59,9 @@ export async function POST(req) {
       `https://zonatmo.org/biblioteca?title=&filter_by=title` +
       `&order_item=likes_count&order_dir=desc&_pg=1&page=${page}`;
 
-    const res = await fetch(searchUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml"
-      },
-      cache: "no-store"
-    });
-    if (!res.ok) return Response.json({ manga: null });
+    const html = await fetchLibraryHtml(searchUrl);
+    if (!html) return Response.json({ manga: null });
 
-    const html = await res.text();
     const linkRegex = /href="(\/library\/[^"]+)"/g;
     let match;
     const candidates = [];
