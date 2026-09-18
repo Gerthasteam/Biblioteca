@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { BookOpen } from "lucide-react";
 import {
   CATEGORY_LABEL,
   CATEGORY_UNIT,
@@ -12,6 +14,27 @@ import {
 } from "../../lib/ui";
 
 export default function DetailModal({ kind, record, onClose, onEdit, onDelete, onBump }) {
+  const isManga = kind === "item" && record?.category === "manga";
+  const [zonatmoUrl, setZonatmoUrl] = useState(null);
+
+  // Busca el link a ZonaTMO solo para manga, y solo cuando cambia el título
+  // — si no hay coincidencia (o el sitio no responde) el botón simplemente
+  // no aparece, no hace falta avisar nada.
+  useEffect(() => {
+    setZonatmoUrl(null);
+    if (!isManga || !record?.title) return;
+    let cancelled = false;
+    fetch(`/api/zonatmo/search?title=${encodeURIComponent(record.title)}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && json.url) setZonatmoUrl(json.url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isManga, record?.title]);
+
   if (!record) return null;
   const unit = kind === "item" ? record.unit || CATEGORY_UNIT[record.category] : "Episodio";
   const statusLabel = kind === "item" ? ITEM_STATUS_LABEL[record.status] : ANIME_STATUS_LABEL[record.status];
@@ -33,6 +56,18 @@ export default function DetailModal({ kind, record, onClose, onEdit, onDelete, o
             <span className="dot" style={{ background: statusDotColor(record.status) }} />
             {statusLabel}
           </span>
+          {zonatmoUrl && (
+            <a
+              href={zonatmoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn subtle zonatmo-link"
+              style={{ marginTop: 10 }}
+            >
+              <BookOpen size={14} />
+              Leer en ZonaTMO
+            </a>
+          )}
         </div>
         {record.description && (
           <p style={{ fontSize: ".86rem", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>

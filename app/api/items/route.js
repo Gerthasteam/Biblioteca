@@ -1,9 +1,13 @@
 import { sql, ensureSchema, rowToItem } from "../../../lib/db";
+import { requireUser } from "../../../lib/auth";
 
-export async function GET() {
+export async function GET(req) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
-    const { rows } = await sql`SELECT * FROM items ORDER BY sort_order ASC, created_at ASC`;
+    const { rows } = await sql`
+      SELECT * FROM items WHERE user_id = ${userId} ORDER BY sort_order ASC, created_at ASC`;
     return Response.json({ items: rows.map(rowToItem) });
   } catch (err) {
     return Response.json(
@@ -14,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
     const body = await req.json();
@@ -32,10 +38,11 @@ export async function POST(req) {
     const description = (body.description || "").slice(0, 280);
 
     const { rows } = await sql`
-      INSERT INTO items (title, category, status, unit, current, total, rating, notes, cover_url, description, sort_order)
+      INSERT INTO items (title, category, status, unit, current, total, rating, notes, cover_url, description, sort_order, user_id)
       VALUES (
         ${title}, ${category}, ${status}, ${unit}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl}, ${description},
-        COALESCE((SELECT MAX(sort_order) + 1 FROM items WHERE category = ${category}), 0)
+        COALESCE((SELECT MAX(sort_order) + 1 FROM items WHERE category = ${category} AND user_id = ${userId}), 0),
+        ${userId}
       )
       RETURNING *`;
     return Response.json({ item: rowToItem(rows[0]) }, { status: 201 });

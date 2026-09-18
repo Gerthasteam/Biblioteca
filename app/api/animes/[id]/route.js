@@ -1,6 +1,9 @@
 import { sql, ensureSchema, rowToAnime } from "../../../../lib/db";
+import { requireUser } from "../../../../lib/auth";
 
 export async function PATCH(req, { params }) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
     const id = Number(params.id);
@@ -20,7 +23,7 @@ export async function PATCH(req, { params }) {
       UPDATE animes SET
         title=${title}, status=${status}, current=${current}, total=${total},
         rating=${rating}, notes=${notes}, cover_url=${coverUrl}
-      WHERE id=${id}
+      WHERE id=${id} AND user_id=${userId}
       RETURNING *`;
     if (!rows[0]) return Response.json({ error: "not_found" }, { status: 404 });
     return Response.json({ anime: rowToAnime(rows[0]) });
@@ -33,10 +36,12 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
     const id = Number(params.id);
-    await sql`DELETE FROM animes WHERE id=${id}`;
+    await sql`DELETE FROM animes WHERE id=${id} AND user_id=${userId}`;
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json(

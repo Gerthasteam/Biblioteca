@@ -1,9 +1,12 @@
 import { sql, ensureSchema, rowToAnime } from "../../../lib/db";
+import { requireUser } from "../../../lib/auth";
 
-export async function GET() {
+export async function GET(req) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
-    const { rows } = await sql`SELECT * FROM animes ORDER BY created_at ASC`;
+    const { rows } = await sql`SELECT * FROM animes WHERE user_id = ${userId} ORDER BY created_at ASC`;
     return Response.json({ animes: rows.map(rowToAnime) });
   } catch (err) {
     return Response.json(
@@ -14,6 +17,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
     const body = await req.json();
@@ -29,8 +34,8 @@ export async function POST(req) {
     const coverUrl = body.coverUrl || null;
 
     const { rows } = await sql`
-      INSERT INTO animes (title, status, current, total, rating, notes, cover_url)
-      VALUES (${title}, ${status}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl})
+      INSERT INTO animes (title, status, current, total, rating, notes, cover_url, user_id)
+      VALUES (${title}, ${status}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl}, ${userId})
       RETURNING *`;
     return Response.json({ anime: rowToAnime(rows[0]) }, { status: 201 });
   } catch (err) {

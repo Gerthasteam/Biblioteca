@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, BookOpen, Tv, Gamepad2, Library } from "lucide-react";
+import { Home, BookOpen, Tv, Gamepad2, Library, LogOut } from "lucide-react";
 
 export const NAV_ITEMS = [
   { key: "home", label: "Inicio", icon: Home },
@@ -10,7 +10,7 @@ export const NAV_ITEMS = [
   { key: "biblioteca", label: "Biblioteca", icon: Library }
 ];
 
-export default function Sidebar({ view, onNavigate }) {
+export default function Sidebar({ view, onNavigate, user, onLogout }) {
   return (
     <header className="sidebar">
       <div className="sidebar__inner">
@@ -40,6 +40,15 @@ export default function Sidebar({ view, onNavigate }) {
             );
           })}
         </nav>
+
+        {user && (
+          <div className="sidebar__user">
+            <span className="sidebar__user-email">{user.email}</span>
+            <button type="button" className="icon-btn" aria-label="Cerrar sesión" onClick={onLogout}>
+              <LogOut size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

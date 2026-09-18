@@ -1,6 +1,9 @@
 import { sql, ensureSchema, rowToTcgFolder } from "../../../../../lib/db";
+import { requireUser } from "../../../../../lib/auth";
 
 export async function PATCH(req, { params }) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
     const body = await req.json();
@@ -8,7 +11,8 @@ export async function PATCH(req, { params }) {
     if (!name) {
       return Response.json({ error: "invalid", message: "Falta el nombre" }, { status: 400 });
     }
-    const { rows } = await sql`UPDATE tcg_folders SET name=${name} WHERE id=${params.id} RETURNING *`;
+    const { rows } = await sql`
+      UPDATE tcg_folders SET name=${name} WHERE id=${params.id} AND user_id=${userId} RETURNING *`;
     if (!rows[0]) return Response.json({ error: "not_found" }, { status: 404 });
     return Response.json({ folder: rowToTcgFolder(rows[0]) });
   } catch (err) {
@@ -20,9 +24,11 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
-    await sql`DELETE FROM tcg_folders WHERE id=${params.id}`;
+    await sql`DELETE FROM tcg_folders WHERE id=${params.id} AND user_id=${userId}`;
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json(

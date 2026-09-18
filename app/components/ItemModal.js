@@ -71,7 +71,22 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
                 setTitle(r.title);
                 if (r.cover) setCoverUrl(r.cover);
                 if (r.total && total === "") setTotal(r.total);
-                if (r.description) setDescription(r.description);
+                if (r.description) {
+                  // Muestra la sinopsis en inglés al toque y la cambia por
+                  // la traducción apenas llega — si la traducción falla, se
+                  // queda con el inglés en vez de dejar el campo vacío.
+                  setDescription(r.description);
+                  fetch("/api/translate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: r.description })
+                  })
+                    .then((res) => res.json())
+                    .then((json) => {
+                      if (json.text) setDescription(json.text);
+                    })
+                    .catch(() => {});
+                }
               }}
             />
           )}

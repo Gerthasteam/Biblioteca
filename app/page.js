@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Download } from "lucide-react";
+import { Search, Plus, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Download, Sparkles, LogOut } from "lucide-react";
+import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import Home from "./components/Home";
@@ -13,6 +14,7 @@ import AnimeModal from "./components/AnimeModal";
 import DetailModal from "./components/DetailModal";
 import TcgFolderModal from "./components/TcgFolderModal";
 import SteamImportModal from "./components/SteamImportModal";
+import RecommendationModal from "./components/RecommendationModal";
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
 
@@ -40,6 +42,9 @@ const VIEW_META = {
 };
 
 export default function App() {
+  // undefined = todavía no sabemos si hay sesión, null = no hay sesión
+  // (mostrar login), objeto = hay usuario logueado.
+  const [user, setUser] = useState(undefined);
   const [view, setView] = useState("home");
   const [categoryFilter, setCategoryFilter] = useState("manga");
   const [search, setSearch] = useState("");
@@ -54,6 +59,7 @@ export default function App() {
   const [folderModal, setFolderModal] = useState(null); // { game } | null
   const [activeTcgFolder, setActiveTcgFolder] = useState(null); // { key, game, setId, setName } | null
   const [steamImportOpen, setSteamImportOpen] = useState(false);
+  const [recommendOpen, setRecommendOpen] = useState(false);
 
   function flashToast(msg) {
     setToast(msg);
@@ -76,6 +82,12 @@ export default function App() {
     try {
       const [ir, ar, fr] = await Promise.all([fetch("/api/items"), fetch("/api/animes"), fetch("/api/tcg/folders")]);
       const [ij, aj, fj] = await Promise.all([ir.json(), ar.json(), fr.json()]);
+      if (ij.error === "unauthorized" || aj.error === "unauthorized") {
+        // La sesión venció mientras estabas usando la app — volvemos a
+        // mostrar el login en vez del mensaje de "no hay base conectada".
+        setUser(null);
+        return;
+      }
       if (ij.items) setItems(ij.items);
       if (aj.animes) setAnimes(aj.animes);
       if (fj.folders) setCustomFolders(fj.folders);
@@ -87,9 +99,39 @@ export default function App() {
     }
   }
 
+  // Al entrar a la web, primero nos fijamos si ya hay una sesión activa
+  // (cookie). Recién ahí sabemos si mostrar el login o la app.
   useEffect(() => {
-    loadAll();
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((json) => setUser(json.user || null))
+      .catch(() => setUser(null));
   }, []);
+
+  // Los datos (manga, anime, TCG) solo se piden una vez que sabemos quién
+  // sos — antes de eso pedirlos solo daría 401.
+  useEffect(() => {
+    if (user) loadAll();
+  }, [user]);
+
+  function handleAuthed(loggedUser) {
+    setUser(loggedUser);
+  }
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    // Limpiamos todo lo que estaba en memoria para que la próxima persona
+    // que inicie sesión en este mismo navegador no vea ni por un instante
+    // la colección de quien cerró sesión.
+    setItems([]);
+    setAnimes([]);
+    setCustomFolders([]);
+    setView("home");
+    setDetail(null);
+    setUser(null);
+  }
 
   const mangaItems = useMemo(() => items.filter((i) => i.category === "manga"), [items]);
   const gameItems = useMemo(() => items.filter((i) => i.category === "videojuego"), [items]);
@@ -396,9 +438,19 @@ export default function App() {
 
   const meta = VIEW_META[view];
 
+  // Todavía no sabemos si hay sesión (primer render) — no mostramos ni el
+  // login ni la app hasta tener la respuesta, para evitar un parpadeo.
+  if (user === undefined) {
+    return <div className="auth-loading" />;
+  }
+
+  if (user === null) {
+    return <AuthScreen onAuthed={handleAuthed} />;
+  }
+
   return (
     <div className="app-shell">
-      <Sidebar view={view} onNavigate={navigate} />
+      <Sidebar view={view} onNavigate={navigate} user={user} onLogout={handleLogout} />
 
       <header className="topbar">
         <div className="topbar__brand">
@@ -407,6 +459,9 @@ export default function App() {
           </div>
           <div className="topbar__title">Mi Colección</div>
         </div>
+        <button type="button" className="icon-btn" aria-label="Cerrar sesión" onClick={handleLogout}>
+          <LogOut size={16} />
+        </button>
       </header>
 
       <main className="main">
@@ -483,6 +538,15 @@ export default function App() {
                 <p className="section-header__sub" style={{ marginTop: -10, marginBottom: 14 }}>
                   Mantené el click apretado sobre una carta para arrastrarla y reordenarla.
                 </p>
+              )}
+
+              {view === "manga" && mangaItems.length > 0 && (
+                <div className="tcg-game-row">
+                  <button type="button" className="btn subtle" onClick={() => setRecommendOpen(true)}>
+                    <Sparkles size={14} />
+                    Recomendación
+                  </button>
+                </div>
               )}
 
               {view === "manga" &&
@@ -751,6 +815,17 @@ export default function App() {
           existingTitles={new Set(gameItems.map((g) => g.title.toLowerCase().trim()))}
           onClose={() => setSteamImportOpen(false)}
           onImport={importSteamGames}
+        />
+      )}
+
+      {recommendOpen && (
+        <RecommendationModal
+          mangaItems={mangaItems}
+          onClose={() => setRecommendOpen(false)}
+          onOpenDetail={(id) => {
+            setRecommendOpen(false);
+            openDetail("item", id);
+          }}
         />
       )}
 

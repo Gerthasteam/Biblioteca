@@ -1,11 +1,14 @@
 import { sql, ensureSchema, rowToTcgFolder } from "../../../../lib/db";
+import { requireUser } from "../../../../lib/auth";
 
 // Carpetas TCG armadas a mano por el usuario (botón "Nueva carpeta"), a
 // diferencia de las que salen de exportar una expansión real.
-export async function GET() {
+export async function GET(req) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
-    const { rows } = await sql`SELECT * FROM tcg_folders ORDER BY created_at ASC`;
+    const { rows } = await sql`SELECT * FROM tcg_folders WHERE user_id = ${userId} ORDER BY created_at ASC`;
     return Response.json({ folders: rows.map(rowToTcgFolder) });
   } catch (err) {
     return Response.json(
@@ -16,6 +19,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const { userId, response } = requireUser(req);
+  if (response) return response;
   try {
     await ensureSchema();
     const body = await req.json();
@@ -24,7 +29,8 @@ export async function POST(req) {
       return Response.json({ error: "invalid", message: "Falta el nombre" }, { status: 400 });
     }
     const id = "f" + Math.random().toString(36).slice(2, 10);
-    const { rows } = await sql`INSERT INTO tcg_folders (id, name) VALUES (${id}, ${name}) RETURNING *`;
+    const { rows } = await sql`
+      INSERT INTO tcg_folders (id, name, user_id) VALUES (${id}, ${name}, ${userId}) RETURNING *`;
     return Response.json({ folder: rowToTcgFolder(rows[0]) });
   } catch (err) {
     return Response.json(

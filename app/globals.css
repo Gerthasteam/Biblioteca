@@ -93,6 +93,9 @@ a{ color:inherit; }
 .nav__item.active{ background:var(--primary); color:#fff; }
 .nav__item svg{ flex-shrink:0; }
 
+.sidebar__user{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.sidebar__user-email{ font-size:.78rem; color:var(--text-muted); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 .main{ flex:1; min-width:0; width:100%; max-width:1280px; margin:0 auto; padding:28px 32px 48px; }
 
 /* mobile top bar + bottom nav */
@@ -143,6 +146,7 @@ a{ color:inherit; }
 .btn:hover{ background:var(--primary-hover); border-color:var(--primary-hover); }
 .btn.subtle{ background:transparent; color:var(--text-muted); border-color:var(--border); }
 .btn.subtle:hover{ background:var(--surface); color:var(--text); }
+.zonatmo-link{ text-decoration:none; }
 .btn:disabled{ opacity:.5; cursor:default; }
 .icon-btn{ width:34px; height:34px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
 .icon-btn:hover{ background:var(--surface-hover); color:var(--text); }
@@ -349,7 +353,7 @@ a{ color:inherit; }
 .modal h2{ font-size:1.35rem; }
 .field{ display:flex; flex-direction:column; gap:6px; position:relative; }
 .field label{ font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; color:var(--text-muted); }
-.field input[type="text"], .field input[type="number"], .field select, .field textarea{
+.field input[type="text"], .field input[type="number"], .field input[type="email"], .field input[type="password"], .field select, .field textarea{
   font-size:.9rem; padding:9px 11px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-soft); color:var(--text); width:100%;
 }
 .field input:focus, .field select:focus, .field textarea:focus{ outline:2px solid var(--secondary); outline-offset:1px; }
@@ -536,3 +540,70 @@ a{ color:inherit; }
 .steam-import-row__info{ display:flex; flex-direction:column; gap:1px; min-width:0; }
 .steam-import-row__title{ font-size:.84rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .steam-import-row__meta{ font-size:.7rem; color:var(--text-muted); }
+
+/* Recomendación de manga: mascota chibi + globo de diálogo */
+.recommend{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:8px 4px 4px;
+}
+.recommend__bubble{
+  position:relative;
+  max-width:320px;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:18px;
+  padding:14px 18px;
+  font-size:.92rem;
+  line-height:1.4;
+  text-align:center;
+  box-shadow:var(--shadow);
+}
+.recommend__bubble strong{ color:var(--accent); }
+.recommend__bubble::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:-9px;
+  transform:translateX(-50%);
+  width:18px; height:18px;
+  background:var(--surface-2);
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  clip-path:polygon(0 0, 100% 0, 50% 100%);
+}
+.recommend__mascot{
+  width:180px;
+  height:auto;
+  margin-top:6px;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.35));
+}
+
+@media (max-width:560px){
+  .recommend__bubble{ max-width:100%; font-size:.88rem; }
+  .recommend__mascot{ width:150px; }
+}
+
+/* Pantalla de login / registro */
+.auth-loading{ min-height:100vh; background:var(--bg); }
+.auth-screen{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:24px; background:var(--bg);
+  background-image: radial-gradient(circle at 20% 15%, rgba(145,108,173,.18), transparent 55%),
+    radial-gradient(circle at 85% 85%, rgba(173,241,130,.08), transparent 50%);
+}
+.auth-card{
+  width:100%; max-width:380px; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:30px 28px 26px; text-align:center;
+  display:flex; flex-direction:column; align-items:center;
+  box-shadow:var(--shadow);
+}
+.auth-card__mascot{ width:110px; margin:-56px 0 4px; filter:drop-shadow(0 12px 16px rgba(0,0,0,.4)); }
+.auth-card h1{ font-family:'Shippori Mincho', serif; font-size:1.3rem; }
+.auth-card__sub{ color:var(--text-muted); font-size:.84rem; margin-top:6px; margin-bottom:20px; }
+.auth-form{ width:100%; display:flex; flex-direction:column; gap:14px; text-align:left; }
+.auth-error{
+  font-size:.8rem; color:var(--gold); background:rgba(220,125,104,.12); border:1px solid rgba(220,125,104,.35);
+  border-radius:var(--radius-sm); padding:9px 12px;
+}
+.auth-switch{ margin-top:16px; justify-content:center; width:100%; }
