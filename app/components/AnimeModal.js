@@ -1,142 +1,99 @@
 "use client";
 
-import { useState } from "react";
-import StarPicker from "./StarPicker";
-import CoverSearch from "./CoverSearch";
+import { useEffect, useState } from "react";
+import { Shuffle, BookOpen } from "lucide-react";
 
-export default function AnimeModal({ editing, onClose, onSave, onDelete }) {
-  const [title, setTitle] = useState(editing ? editing.title : "");
-  const [status, setStatus] = useState(editing ? editing.status : "pendiente");
-  const [current, setCurrent] = useState(editing ? editing.current : 0);
-  const [total, setTotal] = useState(editing && editing.total != null ? editing.total : "");
-  const [rating, setRating] = useState(editing ? editing.rating : 0);
-  const [notes, setNotes] = useState(editing ? editing.notes : "");
-  const [coverUrl, setCoverUrl] = useState(editing ? editing.coverUrl || "" : "");
-  const [saving, setSaving] = useState(false);
+// Mascota chibi + un globo de diálogo con un manga de ZonaTMO que todavía no
+// tenés cargado — no elige entre los tuyos, te tira algo nuevo para
+// descubrir (y un link directo para leerlo).
+export default function RecommendationModal({ mangaItems, onClose }) {
+  // "loading" | "ok" | "empty" | "error"
+  const [status, setStatus] = useState("loading");
+  const [manga, setManga] = useState(null);
 
-  function submit(e) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) return;
-    setSaving(true);
-    onSave({
-      title: t,
-      status,
-      current: parseInt(current || 0, 10),
-      total: total === "" ? null : parseInt(total, 10),
-      rating,
-      notes: notes.trim(),
-      coverUrl: coverUrl.trim() || null
-    });
+  async function fetchRecommendation() {
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/zonatmo/random", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownedTitles: mangaItems.map((i) => i.title) })
+      });
+      const json = await res.json();
+      if (json.manga) {
+        setManga(json.manga);
+        setStatus("ok");
+      } else {
+        setManga(null);
+        setStatus("empty");
+      }
+    } catch {
+      setManga(null);
+      setStatus("error");
+    }
   }
+
+  useEffect(() => {
+    fetchRecommendation();
+    // Solo al abrir el modal — "Otra" dispara un nuevo pedido a mano.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <form className="modal" onSubmit={submit}>
-        <h2>{editing ? "Editar anime" : "Nuevo anime"}</h2>
+      <div className="modal recommend-modal">
+        <h2>Recomendación</h2>
 
-        <div className="field">
-          <label htmlFor="animeTitle">Título</label>
-          <input
-            id="animeTitle"
-            type="text"
-            required
-            maxLength={120}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            autoComplete="off"
-          />
-          <CoverSearch
-            query={title}
-            type="anime"
-            onPick={(r) => {
-              setTitle(r.title);
-              if (r.cover) setCoverUrl(r.cover);
-              if (r.total && total === "") setTotal(r.total);
-            }}
-          />
-        </div>
+        {status === "loading" && (
+          <p className="empty-note" style={{ margin: 0 }}>
+            Buscando algo nuevo en ZonaTMO…
+          </p>
+        )}
 
-        <div className="field">
-          <label htmlFor="animeCover">URL de portada (opcional)</label>
-          <input
-            id="animeCover"
-            type="text"
-            placeholder="Se completa sola si la elegís de la búsqueda"
-            value={coverUrl}
-            onChange={(e) => setCoverUrl(e.target.value)}
-          />
-        </div>
+        {status === "error" && (
+          <p className="empty-note" style={{ margin: 0 }}>
+            No se pudo conectar con ZonaTMO. Probá de nuevo en un rato.
+          </p>
+        )}
 
-        <div className="field">
-          <label htmlFor="animeStatus">Estado</label>
-          <select id="animeStatus" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="pendiente">Pendiente</option>
-            <option value="viendo">Viendo</option>
-            <option value="completo">Completo</option>
-          </select>
-        </div>
+        {status === "empty" && (
+          <p className="empty-note" style={{ margin: 0 }}>
+            No encontramos en ZonaTMO ningún manga que ya no tengas cargado. Probá de nuevo en un rato.
+          </p>
+        )}
 
-        <div className="row2">
-          <div className="field">
-            <label htmlFor="animeCurrent">Episodio actual</label>
-            <input
-              id="animeCurrent"
-              type="number"
-              min={0}
-              step={1}
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-            />
+        {status === "ok" && manga && (
+          <div className="recommend">
+            <div className="recommend__bubble">
+              Te recomiendo <strong>“{manga.title}”</strong>
+            </div>
+            <img className="recommend__mascot" src="/mascot.png" alt="" />
           </div>
-          <div className="field">
-            <label htmlFor="animeTotal">Total (opcional)</label>
-            <input
-              id="animeTotal"
-              type="number"
-              min={0}
-              step={1}
-              placeholder="Ej: 12"
-              value={total}
-              onChange={(e) => setTotal(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="field">
-          <label>Puntaje</label>
-          <StarPicker value={rating} onChange={setRating} />
-        </div>
-
-        <div className="field">
-          <label htmlFor="animeNotes">Notas</label>
-          <textarea
-            id="animeNotes"
-            maxLength={500}
-            placeholder="Qué te pareció, temporada, lo que quieras recordar…"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
+        )}
 
         <div className="modal__actions">
-          {editing ? (
-            <button type="button" className="btn subtle" onClick={onDelete}>
-              Eliminar
-            </button>
-          ) : (
-            <span />
-          )}
+          <button
+            type="button"
+            className="btn subtle"
+            onClick={fetchRecommendation}
+            disabled={status === "loading"}
+          >
+            <Shuffle size={14} />
+            Otra
+          </button>
           <div className="modal__actions-right">
             <button type="button" className="btn subtle" onClick={onClose}>
-              Cancelar
+              Cerrar
             </button>
-            <button type="submit" className="btn" disabled={saving}>
-              Guardar
-            </button>
+            {status === "ok" && manga && (
+              <a href={manga.url} target="_blank" rel="noopener noreferrer" className="btn zonatmo-link">
+                <BookOpen size={14} />
+                Leer en ZonaTMO
+              </a>
+            )}
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
