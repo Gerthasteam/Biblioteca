@@ -478,21 +478,24 @@ a{ color:inherit; }
 .tcg-set__card{
   position:relative; aspect-ratio:16/9; width:100%; border-radius:12px; cursor:pointer; overflow:hidden;
   display:flex; align-items:center; justify-content:center; padding:18px 14px;
-  background:linear-gradient(160deg, var(--surface-2), var(--bg-soft));
-  border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);
+  /* fondo claro (como en la lista oficial): los logos de los sets vienen
+     pensados para blanco y varios son amarillos/pastel que sobre violeta
+     oscuro no se leían */
+  background:linear-gradient(160deg, #FBFAFC, #ECE7F1);
+  border:1px solid rgba(255,255,255,.5); box-shadow:var(--shadow-sm);
   transition:transform .12s ease, border-color .12s ease;
 }
 .tcg-set__card:hover{ transform:translateY(-3px); border-color:var(--secondary); }
-.tcg-set__logo{ max-width:86%; max-height:78%; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.tcg-set__logo{ max-width:86%; max-height:74%; object-fit:contain; }
 .tcg-set__wordmark{
   font-family:'Shippori Mincho', serif; font-weight:800; font-size:1.08rem; line-height:1.15;
   text-align:center; text-transform:uppercase; letter-spacing:.02em; text-wrap:balance;
 }
 .tcg-set__badge{
-  position:absolute; top:6px; right:6px; font-size:.62rem; font-weight:600; color:var(--text-muted);
-  background:rgba(13,10,20,.7); border:1px solid var(--border-soft); border-radius:6px; padding:2px 6px;
+  position:absolute; top:6px; right:6px; font-size:.62rem; font-weight:600; color:#3D3349;
+  background:#fff; border:1px solid #DAD3E2; border-radius:999px; padding:2px 7px;
 }
-.tcg-set__bar{ position:absolute; left:0; right:0; bottom:0; height:4px; background:rgba(255,255,255,.06); }
+.tcg-set__bar{ position:absolute; left:0; right:0; bottom:0; height:4px; background:rgba(82,56,116,.12); }
 .tcg-set__bar-fill{ display:block; height:100%; background:linear-gradient(90deg,var(--secondary),var(--accent)); }
 .tcg-set__delete{
   position:absolute; top:6px; left:6px; width:26px; height:26px; border-radius:50%; border:none; cursor:pointer;

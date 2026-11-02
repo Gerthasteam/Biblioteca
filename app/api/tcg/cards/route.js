@@ -1,5 +1,7 @@
 // Cartas de un set/expansión puntual, para el paso 3 del asistente de carga
 // (elegir la carta después de elegir juego y set) y para "Carpeta TCG".
+import { ONE_PIECE_VIRTUAL_SETS } from "../../../../lib/onePieceSets";
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const game = searchParams.get("game");
@@ -46,10 +48,19 @@ async function pokemonCards(setId) {
 
 async function onePieceCards(setId) {
   try {
-    const res = await fetch(`https://optcgapi.com/api/sets/${encodeURIComponent(setId)}/`, { cache: "no-store" });
-    if (!res.ok) return Response.json({ cards: [], error: "upstream_error" }, { status: 502 });
-    const json = await res.json();
-    const cards = (Array.isArray(json) ? json : []).map((c) => ({
+    // Set "virtual" (ver lib/onePieceSets.js): se juntan las cartas con su
+    // código desde los sets donde vinieron mezcladas.
+    const virtual = ONE_PIECE_VIRTUAL_SETS[setId];
+    const sources = virtual ? virtual.from : [setId];
+    let list = [];
+    for (const src of sources) {
+      const res = await fetch(`https://optcgapi.com/api/sets/${encodeURIComponent(src)}/`, { cache: "no-store" });
+      if (!res.ok) return Response.json({ cards: [], error: "upstream_error" }, { status: 502 });
+      const json = await res.json();
+      list = list.concat(Array.isArray(json) ? json : []);
+    }
+    if (virtual) list = list.filter((c) => String(c.card_set_id || "").startsWith(virtual.prefix));
+    const cards = list.map((c) => ({
       id: c.card_set_id,
       title: c.card_name,
       number: c.card_set_id || null,

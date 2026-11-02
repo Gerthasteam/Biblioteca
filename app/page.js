@@ -211,6 +211,18 @@ export default function App() {
       .catch(() => {});
   }, [activeTcgGame, setMeta]);
 
+  // Expansiones de la más nueva a la más vieja cuando sabemos la fecha
+  // (como en la lista oficial); las que no tienen fecha (carpetas armadas a
+  // mano) quedan al final en el orden de siempre.
+  const sortedGameFolders = useMemo(() => {
+    const meta = setMeta[activeTcgGame] || {};
+    const date = (f) => (f.custom ? "" : meta[f.setId]?.releaseDate || "");
+    return gameFolders
+      .map((f, i) => ({ f, i }))
+      .sort((a, b) => date(b.f).localeCompare(date(a.f)) || a.i - b.i)
+      .map((x) => x.f);
+  }, [gameFolders, setMeta, activeTcgGame]);
+
   function gameStats(gameKey) {
     const folders = tcgFolders.filter((f) => f.group === gameKey);
     const cards = folders.flatMap((f) => f.items);
@@ -830,7 +842,7 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="tcg-set-grid">
-                          {gameFolders.map((f) => (
+                          {sortedGameFolders.map((f) => (
                             <TcgFolderTile
                               key={f.key}
                               folder={f}

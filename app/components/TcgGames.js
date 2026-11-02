@@ -36,10 +36,7 @@ export function TcgFolderTile({ folder, gameKey, meta, onOpen, onDelete }) {
         {showLogo ? (
           <img className="tcg-set__logo" src={meta.logo} alt={folder.setName} onError={() => setLogoFailed(true)} />
         ) : (
-          <span
-            className="tcg-set__wordmark"
-            style={{ color: game.colors[0], textShadow: `0 2px 0 ${game.colors[1]}, 0 0 12px ${game.colors[1]}77` }}
-          >
+          <span className="tcg-set__wordmark" style={{ color: game.colors[1] }}>
             {folder.setName}
           </span>
         )}
