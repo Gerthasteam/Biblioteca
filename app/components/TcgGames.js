@@ -56,7 +56,10 @@ export function TcgFolderTile({ folder, gameKey, meta, onOpen, onDelete }) {
         <Trash2 size={13} />
       </button>
       <button type="button" className="tcg-set__info" onClick={onOpen}>
-        <span className="tcg-set__name">{folder.setName}</span>
+        <span className="tcg-set__name">
+          {folder.setName}
+          {!folder.custom && formatSetCode(folder.setId) && ` (${formatSetCode(folder.setId)})`}
+        </span>
         <span className="tcg-set__count">
           {total === 0 ? "Vacía" : `${owned}/${total} cartas · ${pct}%`}
         </span>
