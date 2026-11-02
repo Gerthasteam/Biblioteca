@@ -28,9 +28,10 @@ export async function POST(req) {
     if (!name) {
       return Response.json({ error: "invalid", message: "Falta el nombre" }, { status: 400 });
     }
+    const game = /^[a-z0-9]{1,30}$/.test(body.game || "") ? body.game : "otros";
     const id = "f" + Math.random().toString(36).slice(2, 10);
     const { rows } = await sql`
-      INSERT INTO tcg_folders (id, name, user_id) VALUES (${id}, ${name}, ${userId}) RETURNING *`;
+      INSERT INTO tcg_folders (id, name, user_id, game) VALUES (${id}, ${name}, ${userId}, ${game}) RETURNING *`;
     return Response.json({ folder: rowToTcgFolder(rows[0]) });
   } catch (err) {
     return Response.json(

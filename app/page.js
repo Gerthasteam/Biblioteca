@@ -14,8 +14,10 @@ import AnimeModal from "./components/AnimeModal";
 import DetailModal from "./components/DetailModal";
 import TcgFolderModal from "./components/TcgFolderModal";
 import RecommendationModal from "./components/RecommendationModal";
+import { TcgLogo, TcgGameTile, TcgAddGameTile, TcgGamePicker } from "./components/TcgGames";
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
+import { TCG_GAMES, tcgGame } from "../lib/tcgGames";
 
 const EXAMPLE_MANGA = [
   { title: "Vinland Saga", category: "manga", current: 112, total: 220, rating: 5, status: "progreso" },
@@ -46,7 +48,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState([]);
   const [animes, setAnimes] = useState([]);
-  const [customFolders, setCustomFolders] = useState([]); // [{ id, name }] — carpetas TCG armadas a mano
+  const [customFolders, setCustomFolders] = useState([]); // [{ id, name, game }] — carpetas TCG armadas a mano
+  const [tcgGamesAdded, setTcgGamesAdded] = useState([]); // ["onepiece", "pokemon", …] — la grilla de logos
   const [toast, setToast] = useState(null);
 
   const [itemModal, setItemModal] = useState(null); // { editing, defaultCategory } | null
@@ -54,6 +57,8 @@ export default function App() {
   const [detail, setDetail] = useState(null); // { kind, id } | null
   const [folderModal, setFolderModal] = useState(null); // { game } | null
   const [activeTcgFolder, setActiveTcgFolder] = useState(null); // { key, game, setId, setName } | null
+  const [activeTcgGame, setActiveTcgGame] = useState(null); // "onepiece" | "pokemon" | … | null (grilla)
+  const [gamePickerOpen, setGamePickerOpen] = useState(false);
   const [recommendOpen, setRecommendOpen] = useState(false);
 
   function flashToast(msg) {
@@ -66,6 +71,7 @@ export default function App() {
     setSearch("");
     setCategoryFilter("manga");
     setActiveTcgFolder(null);
+    setActiveTcgGame(null);
   }
 
   function selectCategoryFilter(c) {
@@ -75,8 +81,13 @@ export default function App() {
 
   async function loadAll() {
     try {
-      const [ir, ar, fr] = await Promise.all([fetch("/api/items"), fetch("/api/animes"), fetch("/api/tcg/folders")]);
-      const [ij, aj, fj] = await Promise.all([ir.json(), ar.json(), fr.json()]);
+      const [ir, ar, fr, gr] = await Promise.all([
+        fetch("/api/items"),
+        fetch("/api/animes"),
+        fetch("/api/tcg/folders"),
+        fetch("/api/tcg/games")
+      ]);
+      const [ij, aj, fj, gj] = await Promise.all([ir.json(), ar.json(), fr.json(), gr.json().catch(() => ({}))]);
       if (ij.error === "unauthorized" || aj.error === "unauthorized") {
         // La sesión venció mientras estabas usando la app — volvemos a
         // mostrar el login en vez del mensaje de "no hay base conectada".
@@ -86,6 +97,7 @@ export default function App() {
       if (ij.items) setItems(ij.items);
       if (aj.animes) setAnimes(aj.animes);
       if (fj.folders) setCustomFolders(fj.folders);
+      if (gj.games) setTcgGamesAdded(gj.games);
       if (ij.error || aj.error) {
         flashToast("Todavía no conectaste la base de datos — los cambios no se guardan.");
       }
@@ -119,18 +131,20 @@ export default function App() {
     if (!AppPlugin) return;
     const sub = AppPlugin.addListener("backButton", () => {
       if (recommendOpen) setRecommendOpen(false);
+      else if (gamePickerOpen) setGamePickerOpen(false);
       else if (folderModal) setFolderModal(null);
       else if (itemModal) setItemModal(null);
       else if (animeModal) setAnimeModal(null);
       else if (detail) setDetail(null);
       else if (activeTcgFolder) setActiveTcgFolder(null);
+      else if (activeTcgGame) setActiveTcgGame(null);
       else if (user && view !== "home") navigate("home");
       else AppPlugin.exitApp();
     });
     return () => {
       Promise.resolve(sub).then((h) => h?.remove?.());
     };
-  }, [user, view, recommendOpen, folderModal, itemModal, animeModal, detail, activeTcgFolder]);
+  }, [user, view, recommendOpen, gamePickerOpen, folderModal, itemModal, animeModal, detail, activeTcgFolder, activeTcgGame]);
 
   function handleAuthed(loggedUser) {
     setUser(loggedUser);
@@ -146,6 +160,8 @@ export default function App() {
     setItems([]);
     setAnimes([]);
     setCustomFolders([]);
+    setTcgGamesAdded([]);
+    setActiveTcgGame(null);
     setView("home");
     setDetail(null);
     setUser(null);
@@ -166,6 +182,63 @@ export default function App() {
   }, [items, categoryFilter, search]);
 
   const tcgFolders = useMemo(() => groupTcgFolders(items, customFolders), [items, customFolders]);
+
+  // Juegos de la grilla: los que agregaste a mano + los que ya tienen
+  // carpetas (por ejemplo One Piece, que existía antes de esta grilla), en
+  // el orden del catálogo.
+  const shownTcgGames = useMemo(() => {
+    const keys = new Set([...tcgGamesAdded, ...tcgFolders.map((f) => f.group)]);
+    return TCG_GAMES.map((g) => g.key).filter((k) => keys.has(k));
+  }, [tcgGamesAdded, tcgFolders]);
+  const gameFolders = useMemo(
+    () => (activeTcgGame ? tcgFolders.filter((f) => f.group === activeTcgGame) : []),
+    [tcgFolders, activeTcgGame]
+  );
+
+  function gameStats(gameKey) {
+    const folders = tcgFolders.filter((f) => f.group === gameKey);
+    const cards = folders.flatMap((f) => f.items);
+    const owned = cards.filter((it) => it.status === "completo").length;
+    if (!folders.length) return "Sin carpetas";
+    return `${folders.length} carpeta${folders.length === 1 ? "" : "s"} · ${owned}/${cards.length} cartas`;
+  }
+
+  async function addTcgGame(gameKey) {
+    setGamePickerOpen(false);
+    setTcgGamesAdded((prev) => (prev.includes(gameKey) ? prev : [...prev, gameKey]));
+    setActiveTcgGame(gameKey);
+    try {
+      const res = await fetch("/api/tcg/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: gameKey })
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      flashToast("No se pudo guardar el juego en el servidor.");
+    }
+  }
+
+  // Saca un juego de la grilla. Solo si está vacío — para no borrar
+  // carpetas enteras sin querer; primero hay que borrar sus carpetas.
+  async function removeTcgGame(gameKey) {
+    if (tcgFolders.some((f) => f.group === gameKey)) {
+      flashToast("Primero borrá las carpetas de este juego.");
+      return;
+    }
+    if (!window.confirm(`¿Quitar ${tcgGame(gameKey).name} de tus TCG?`)) return;
+    setTcgGamesAdded((prev) => prev.filter((k) => k !== gameKey));
+    setActiveTcgGame(null);
+    try {
+      await fetch("/api/tcg/games", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: gameKey })
+      });
+    } catch {
+      flashToast("No se pudo quitar el juego en el servidor.");
+    }
+  }
   const activeFolderItems = useMemo(() => {
     if (!activeTcgFolder) return [];
     return items.filter((it) => {
@@ -264,6 +337,7 @@ export default function App() {
       setItems((prev) => [...prev, ...(json.items || [])]);
       setFolderModal(null);
       setView("tcg");
+      setActiveTcgGame(meta.game);
       setActiveTcgFolder({ game: meta.game, setId: meta.set.id, setName: meta.set.name });
       flashToast(
         json.items.length
@@ -321,19 +395,20 @@ export default function App() {
   function openTcgFolder(folder) {
     setFolderModal(null);
     setView("tcg");
+    setActiveTcgGame(folder.group || folder.game);
     setActiveTcgFolder(folder);
   }
 
   // Carpeta TCG armada a mano (botón "Nueva carpeta"): no viene de exportar
   // una expansión, así que arranca vacía y se le van agregando cartas.
-  async function createCustomFolder() {
+  async function createCustomFolder(gameKey) {
     const name = window.prompt("Nombre de la carpeta:");
     if (!name || !name.trim()) return;
     try {
       const res = await fetch("/api/tcg/folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() })
+        body: JSON.stringify({ name: name.trim(), game: gameKey })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "error");
@@ -342,6 +417,7 @@ export default function App() {
       setActiveTcgFolder({
         key: `custom:${json.folder.id}`,
         game: "custom",
+        group: json.folder.game,
         setId: json.folder.id,
         setName: json.folder.name,
         custom: true,
@@ -553,15 +629,28 @@ export default function App() {
                 </div>
               </section>
 
-              {view === "tcg" && !activeTcgFolder && (
+              {view === "tcg" && activeTcgGame && !activeTcgFolder && !search && (
                 <div className="tcg-game-row">
-                  <button type="button" className="btn subtle" onClick={() => setFolderModal({ game: "onepiece" })}>
-                    One Piece
+                  <button type="button" className="btn subtle" onClick={() => setActiveTcgGame(null)}>
+                    <ChevronLeft size={14} />
+                    Mis TCG
                   </button>
-                  <button type="button" className="btn subtle" onClick={createCustomFolder}>
+                  {tcgGame(activeTcgGame).api && (
+                    <button type="button" className="btn subtle" onClick={() => setFolderModal({ game: activeTcgGame })}>
+                      <Plus size={14} />
+                      Agregar expansión
+                    </button>
+                  )}
+                  <button type="button" className="btn subtle" onClick={() => createCustomFolder(activeTcgGame)}>
                     <FolderPlus size={14} />
                     Nueva carpeta
                   </button>
+                  {gameFolders.length === 0 && (
+                    <button type="button" className="btn subtle" onClick={() => removeTcgGame(activeTcgGame)}>
+                      <Trash2 size={14} />
+                      Quitar juego
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -634,7 +723,7 @@ export default function App() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                         <button type="button" className="btn subtle" onClick={() => setActiveTcgFolder(null)}>
                           <ChevronLeft size={14} />
-                          Mis carpetas
+                          {activeTcgGame ? tcgGame(activeTcgGame).name : "Mis carpetas"}
                         </button>
                         <div style={{ display: "flex", gap: 8 }}>
                           {activeTcgFolder.game === "custom" && (
@@ -694,17 +783,38 @@ export default function App() {
                         />
                       )}
                     </>
-                  ) : tcgFolders.length === 0 ? (
-                    <div className="empty-note empty-note--mascot">
-                      <img src="/mascot.png" alt="" />
-                      <p>
-                        Todavía no tenés ninguna carpeta — exportá una expansión (One Piece) o creá una a mano con
-                        "Nueva carpeta".
-                      </p>
-                    </div>
+                  ) : !activeTcgGame ? (
+                    <>
+                      {shownTcgGames.length === 0 && (
+                        <div className="empty-note empty-note--mascot" style={{ marginBottom: 18 }}>
+                          <img src="/mascot.png" alt="" />
+                          <p>Todavía no agregaste ningún juego — tocá "Agregar juego" para empezar.</p>
+                        </div>
+                      )}
+                      <div className="tcg-game-grid">
+                        {shownTcgGames.map((k) => (
+                          <TcgGameTile key={k} gameKey={k} meta={gameStats(k)} onClick={() => setActiveTcgGame(k)} />
+                        ))}
+                        <TcgAddGameTile onClick={() => setGamePickerOpen(true)} />
+                      </div>
+                    </>
                   ) : (
+                    <>
+                      <div className="tcg-game-header">
+                        <TcgLogo gameKey={activeTcgGame} small />
+                      </div>
+                      {gameFolders.length === 0 ? (
+                        <div className="empty-note empty-note--mascot">
+                          <img src="/mascot.png" alt="" />
+                          <p>
+                            {tcgGame(activeTcgGame).api
+                              ? `Todavía no tenés carpetas de ${tcgGame(activeTcgGame).name} — tocá "Agregar expansión" para exportar un set completo, o armá una a mano con "Nueva carpeta".`
+                              : `Todavía no tenés carpetas de ${tcgGame(activeTcgGame).name} — creá una con "Nueva carpeta" y andá cargando tus cartas.`}
+                          </p>
+                        </div>
+                      ) : (
                     <div className="tcg-folder-list">
-                      {tcgFolders.map((f) => {
+                      {gameFolders.map((f) => {
                         const owned = f.items.filter((it) => it.status === "completo").length;
                         const total = f.items.length;
                         const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
@@ -749,6 +859,8 @@ export default function App() {
                         );
                       })}
                     </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -822,6 +934,10 @@ export default function App() {
           onOpenFolder={openTcgFolder}
           onClose={() => setFolderModal(null)}
         />
+      )}
+
+      {gamePickerOpen && (
+        <TcgGamePicker added={shownTcgGames} onPick={addTcgGame} onClose={() => setGamePickerOpen(false)} />
       )}
 
       {recommendOpen && (

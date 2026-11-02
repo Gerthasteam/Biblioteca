@@ -439,7 +439,43 @@ a{ color:inherit; }
 .tcg-folder-summary__count{ font-size:.94rem; font-weight:700; }
 .tcg-folder-summary__sub{ font-size:.8rem; color:var(--text-muted); }
 
-.tcg-game-row{ display:flex; gap:10px; margin:-10px 0 18px; }
+.tcg-game-row{ display:flex; gap:10px; margin:-10px 0 18px; flex-wrap:wrap; }
+
+/* grilla de juegos TCG (logos): solo los que agregaste + "Agregar juego" */
+.tcg-game-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:16px; }
+.tcg-game-tile{
+  position:relative; aspect-ratio:16/9; border-radius:12px; cursor:pointer; padding:14px 16px 26px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  background:linear-gradient(160deg, var(--surface-2), var(--bg-soft));
+  border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); color:var(--text);
+  transition:transform .12s ease, border-color .12s ease, background .12s ease;
+}
+.tcg-game-tile:hover{ transform:translateY(-3px); border-color:var(--secondary); }
+.tcg-game-tile__logo{ flex:1; width:100%; min-height:0; display:flex; align-items:center; justify-content:center; }
+.tcg-game-tile__meta{
+  position:absolute; left:0; right:0; bottom:8px; text-align:center;
+  font-size:.7rem; color:var(--text-muted);
+}
+.tcg-game-tile--add{ background:transparent; border:2px dashed var(--border); color:var(--text-muted); box-shadow:none; }
+.tcg-game-tile--add:hover{ color:var(--text); background:var(--surface); }
+.tcg-logo{ max-width:88%; max-height:72px; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.tcg-logo--small{ max-height:56px; max-width:240px; }
+.tcg-logo--light{ filter:brightness(0) invert(.9) drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.tcg-wordmark{
+  font-family:'Shippori Mincho', serif; font-weight:800; font-size:1.25rem; line-height:1.1;
+  text-align:center; letter-spacing:.01em; text-wrap:balance;
+}
+.tcg-wordmark--small{ font-size:1.5rem; }
+.tcg-game-header{ display:flex; align-items:center; margin:0 0 16px; min-height:56px; }
+.tcg-game-grid--picker{ grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:10px; max-height:60vh; overflow-y:auto; padding:2px; }
+.tcg-game-grid--picker .tcg-game-tile{ padding:10px; }
+.tcg-game-grid--picker .tcg-wordmark{ font-size:1rem; }
+.modal--wide{ max-width:720px; }
+@media (max-width:560px){
+  .tcg-game-grid{ grid-template-columns:repeat(2,1fr); gap:10px; }
+  .tcg-wordmark{ font-size:1rem; }
+  .tcg-game-tile__meta{ font-size:.62rem; }
+}
 
 /* logo/código de la cabecera al entrar a una carpeta (no son parte de la lista de abajo) */
 .tcg-folder-tile__logo{
