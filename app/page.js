@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut } from "lucide-react";
 import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
@@ -18,6 +18,8 @@ import { TcgLogo, TcgGameTile, TcgAddGameTile, TcgGamePicker, TcgFolderTile } fr
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
 import { TCG_GAMES, tcgGame } from "../lib/tcgGames";
+import { tcgValue, formatUsd } from "../lib/tcgCard";
+import TcgCardList from "./components/TcgCardList";
 
 const EXAMPLE_MANGA = [
   { title: "Vinland Saga", category: "manga", current: 112, total: 220, rating: 5, status: "progreso" },
@@ -223,12 +225,87 @@ export default function App() {
       .map((x) => x.f);
   }, [gameFolders, setMeta, activeTcgGame]);
 
+  // Precios de mercado (USD) por clave de carta, por juego: { onepiece:
+  // { "OP01-001": 0.4, … } }. Se piden al entrar a TCG, solo para los
+  // juegos con API (One Piece de una; Pokémon solo los sets que tenés).
+  const [tcgPrices, setTcgPrices] = useState({});
+  const pricesLoaded = useRef({}); // juego -> qué pedido ya se hizo
+  useEffect(() => {
+    if (view !== "tcg") return;
+    for (const game of shownTcgGames) {
+      if (!tcgGame(game).api) continue;
+      const sets =
+        game === "pokemon"
+          ? [...new Set(tcgFolders.filter((f) => f.group === game && !f.custom && f.setId).map((f) => f.setId))].sort().join(",")
+          : "";
+      if (game === "pokemon" && !sets) continue;
+      const key = game + "|" + sets;
+      if (pricesLoaded.current[game] === key) continue;
+      pricesLoaded.current[game] = key;
+      fetch(`/api/tcg/prices?game=${game}${sets ? `&sets=${encodeURIComponent(sets)}` : ""}`)
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.prices && Object.keys(json.prices).length) {
+            setTcgPrices((prev) => ({ ...prev, [game]: { ...prev[game], ...json.prices } }));
+          } else {
+            pricesLoaded.current[game] = null; // falló: se reintenta la próxima vez
+          }
+        })
+        .catch(() => {
+          pricesLoaded.current[game] = null;
+        });
+    }
+  }, [view, shownTcgGames, tcgFolders]);
+
+  // Datos de cada carta (número, rareza, color, paralela, precio) de la
+  // carpeta abierta, para la vista de lista. Se piden una vez por set.
+  const [folderCards, setFolderCards] = useState({}); // { "onepiece:OP-01": { key: card } }
+  useEffect(() => {
+    const f = activeTcgFolder;
+    if (!f || f.custom || !f.setId || !tcgGame(f.game).api) return;
+    const k = `${f.game}:${f.setId}`;
+    if (folderCards[k]) return;
+    fetch(`/api/tcg/cards?game=${f.game}&set=${encodeURIComponent(f.setId)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json.cards?.length) return;
+        const byKey = {};
+        const prices = {};
+        for (const c of json.cards) {
+          byKey[c.id] = c;
+          if (c.price != null) prices[c.id] = c.price;
+        }
+        setFolderCards((prev) => ({ ...prev, [k]: byKey }));
+        setTcgPrices((prev) => ({ ...prev, [f.game]: { ...prev[f.game], ...prices } }));
+      })
+      .catch(() => {});
+  }, [activeTcgFolder, folderCards]);
+
+  // Carpeta o lista: se recuerda en este navegador.
+  const [tcgFolderView, setTcgFolderView] = useState("carpeta");
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("estante.tcgFolderView");
+      if (v === "lista" || v === "carpeta") setTcgFolderView(v);
+    } catch {}
+  }, []);
+  function changeTcgFolderView(v) {
+    setTcgFolderView(v);
+    try {
+      localStorage.setItem("estante.tcgFolderView", v);
+    } catch {}
+  }
+
   function gameStats(gameKey) {
     const folders = tcgFolders.filter((f) => f.group === gameKey);
     const cards = folders.flatMap((f) => f.items);
     const owned = cards.filter((it) => it.status === "completo").length;
     if (!folders.length) return "Sin carpetas";
-    return `${folders.length} carpeta${folders.length === 1 ? "" : "s"} · ${owned}/${cards.length} cartas`;
+    const value = tcgPrices[gameKey] ? tcgValue(cards, tcgPrices[gameKey]).owned : 0;
+    return (
+      `${folders.length} carpeta${folders.length === 1 ? "" : "s"} · ${owned}/${cards.length} cartas` +
+      (value > 0 ? ` · ${formatUsd(value)}` : "")
+    );
   }
 
   async function addTcgGame(gameKey) {
@@ -339,14 +416,24 @@ export default function App() {
   }
 
   // Prende/apaga una carta de la carpeta (la tenés / no la tenés) sin abrir
-  // el modal de edición.
+  // el modal de edición. Prenderla cuenta 1 copia si no tenía cantidad.
   function toggleOwned(item) {
-    const nextStatus = item.status === "completo" ? "pendiente" : "completo";
-    setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, status: nextStatus } : it)));
+    setTcgQuantity(item, item.status === "completo" ? 0 : Math.max(1, item.current || 0));
+  }
+
+  // Cantidad de copias de una carta TCG: se guarda en "current", y tener
+  // 0 copias es lo mismo que no tenerla (status pendiente).
+  function setTcgQuantity(item, qty) {
+    const current = Math.max(0, Math.min(999, qty | 0));
+    const status = current > 0 ? "completo" : "pendiente";
+    setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, status, current } : it)));
+    const payload = { ...item, status, current };
+    delete payload.id;
+    delete payload.createdAt;
     fetch(`/api/items/${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...item, status: nextStatus })
+      body: JSON.stringify(payload)
     }).catch(() => flashToast("No se pudo actualizar la carta."));
   }
 
@@ -689,7 +776,7 @@ export default function App() {
                 </p>
               )}
 
-              {view === "tcg" && activeTcgFolder && !search && activeFolderItems.length > 1 && (
+              {view === "tcg" && activeTcgFolder && !search && activeFolderItems.length > 1 && tcgFolderView === "carpeta" && (
                 <p className="section-header__sub" style={{ marginTop: -10, marginBottom: 14 }}>
                   Mantené apretada una carta (click o dedo) y arrastrala para reordenarla.
                 </p>
@@ -799,8 +886,57 @@ export default function App() {
                           </button>
                         )}
                       </div>
+                      {activeFolderItems.length > 0 && (() => {
+                        const owned = activeFolderItems.filter((it) => it.status === "completo").length;
+                        const pct = Math.round((owned / activeFolderItems.length) * 100);
+                        const value = tcgValue(activeFolderItems, tcgPrices[activeTcgFolder.game]);
+                        const hasPrices = value.owned > 0 || value.missing > 0;
+                        return (
+                          <div className="tcg-folder-stats">
+                            <div className="tcg-folder-stats__item">
+                              <b>{owned}/{activeFolderItems.length}</b>
+                              <span>cartas · {pct}%</span>
+                            </div>
+                            {hasPrices && (
+                              <>
+                                <div className="tcg-folder-stats__item">
+                                  <b>{formatUsd(value.owned)}</b>
+                                  <span>lo que tenés</span>
+                                </div>
+                                <div className="tcg-folder-stats__item">
+                                  <b>{formatUsd(value.missing)}</b>
+                                  <span>lo que falta</span>
+                                </div>
+                              </>
+                            )}
+                            <div className="tcg-view-toggle" role="tablist">
+                              {["carpeta", "lista"].map((v) => (
+                                <button
+                                  key={v}
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={tcgFolderView === v}
+                                  className={tcgFolderView === v ? "active" : ""}
+                                  onClick={() => changeTcgFolderView(v)}
+                                >
+                                  {v === "carpeta" ? "Carpeta" : "Lista"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {shownFolderItems.length === 0 ? (
                         <p className="empty-note">Esta carpeta todavía no tiene cartas.</p>
+                      ) : tcgFolderView === "lista" ? (
+                        <TcgCardList
+                          items={shownFolderItems}
+                          info={folderCards[`${activeTcgFolder.game}:${activeTcgFolder.setId}`]}
+                          prices={tcgPrices[activeTcgFolder.game]}
+                          onToggleOwned={toggleOwned}
+                          onSetQuantity={setTcgQuantity}
+                          onEdit={(id) => openDetail("item", id)}
+                        />
                       ) : (
                         <Binder
                           items={shownFolderItems}
@@ -848,6 +984,7 @@ export default function App() {
                               folder={f}
                               gameKey={activeTcgGame}
                               meta={setMeta[activeTcgGame]?.[f.setId]}
+                              prices={tcgPrices[activeTcgGame]}
                               onOpen={() => setActiveTcgFolder(f)}
                               onDelete={() => deleteTcgFolder(f, f.items.map((it) => it.id))}
                             />

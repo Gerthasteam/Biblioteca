@@ -508,6 +508,72 @@ a{ color:inherit; }
 .tcg-set__name{ font-size:.9rem; font-weight:700; line-height:1.25; }
 .tcg-set__count{ font-size:.74rem; color:var(--text-muted); }
 @media (hover:none){ .tcg-set__delete{ opacity:.85; } }
+.tcg-set__value{ color:var(--accent); font-weight:600; }
+
+/* resumen de una carpeta abierta + selector Carpeta / Lista */
+.tcg-folder-stats{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin:0 0 16px; }
+.tcg-folder-stats__item{ display:flex; flex-direction:column; gap:1px; }
+.tcg-folder-stats__item b{ font-size:1.02rem; font-variant-numeric:tabular-nums; }
+.tcg-folder-stats__item span{ font-size:.7rem; color:var(--text-muted); }
+.tcg-view-toggle{ margin-left:auto; display:inline-flex; padding:3px; border-radius:99px; background:var(--surface); border:1px solid var(--border); }
+.tcg-view-toggle button{ border:none; background:none; color:var(--text-muted); font-size:.78rem; font-weight:600; padding:6px 14px; border-radius:99px; cursor:pointer; }
+.tcg-view-toggle button.active{ background:var(--primary); color:#fff; }
+
+/* vista de lista de una carpeta TCG */
+.tcg-list__filters{ display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.tcg-list__chips{ display:flex; gap:6px; flex-wrap:wrap; }
+.tcg-list__selects{ display:flex; gap:8px; flex-wrap:wrap; }
+.tcg-list__selects select{
+  font-size:.78rem; padding:7px 10px; border-radius:99px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text);
+}
+.tcg-list__grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:14px; }
+.tcg-card{
+  position:relative; display:flex; flex-direction:column; border-radius:12px; overflow:hidden;
+  background:var(--surface); border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);
+}
+.tcg-card__img{
+  position:relative; aspect-ratio:2.5/3.5; width:100%; border:none; padding:0; cursor:pointer;
+  background-size:cover; background-position:center; background-color:var(--bg-soft);
+  transition:filter .15s ease;
+}
+.tcg-card--off .tcg-card__img{ filter:grayscale(1) brightness(.45); }
+.tcg-card__variant, .tcg-card__rarity{
+  position:absolute; font-size:.6rem; font-weight:700; padding:2px 6px; border-radius:6px; letter-spacing:.02em;
+}
+.tcg-card__variant{ left:6px; bottom:6px; background:linear-gradient(90deg,#F2C94C,#E8590C); color:#1A120A; }
+.tcg-card__rarity{ right:6px; top:6px; background:rgba(13,10,20,.78); color:#fff; border:1px solid rgba(255,255,255,.2); }
+.tcg-card__body{ padding:8px 10px 10px; display:flex; flex-direction:column; gap:3px; min-width:0; }
+.tcg-card__title{ font-size:.8rem; font-weight:700; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tcg-card__meta{ display:flex; align-items:center; gap:5px; font-size:.68rem; color:var(--text-muted); min-width:0; }
+.tcg-card__type{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tcg-card__dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; box-shadow:0 0 0 1px rgba(0,0,0,.4); }
+.tcg-card__bottom{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:4px; }
+.tcg-card__price{ font-size:.76rem; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.tcg-card__qty{ display:inline-flex; align-items:center; gap:6px; background:var(--bg-soft); border:1px solid var(--border); border-radius:99px; padding:2px; }
+.tcg-card__qty b{ font-size:.76rem; min-width:14px; text-align:center; font-variant-numeric:tabular-nums; }
+.tcg-card__qty button{
+  width:22px; height:22px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  background:var(--surface-2); color:var(--text);
+}
+.tcg-card__qty button:disabled{ opacity:.35; cursor:default; }
+.tcg-card__edit{
+  position:absolute; top:6px; left:6px; width:24px; height:24px; border-radius:50%; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; background:rgba(20,16,28,.72); color:#F5F1F8; opacity:.6;
+}
+.tcg-card__edit:hover{ opacity:1; background:var(--primary); }
+@media (hover:none){
+  .tcg-card__qty button{ width:28px; height:28px; }
+}
+@media (max-width:560px){
+  .tcg-list__grid{ grid-template-columns:repeat(2,1fr); gap:10px; }
+  .tcg-view-toggle{ margin-left:0; }
+  .tcg-list__selects select{ flex:1; min-width:0; }
+  .tcg-list__selects{ width:100%; }
+  .tcg-card__body{ padding:7px 8px 8px; }
+  .tcg-card__price{ font-size:.7rem; }
+  .tcg-card__qty{ gap:3px; }
+}
 @media (max-width:560px){
   .tcg-set-grid{ grid-template-columns:repeat(2,1fr); gap:14px 10px; }
   /* botones de arriba de un juego (Mis TCG, Agregar expansión…) de a dos */

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { TCG_GAMES, tcgGame, tcgLogoUrl } from "../../lib/tcgGames";
 import { formatSetCode } from "../../lib/tcgRef";
+import { tcgValue, formatUsd } from "../../lib/tcgCard";
 
 // "2023/03/31" (formato de la API de Pokémon) -> "31 mar 2023"
 function formatReleaseDate(raw) {
@@ -20,12 +21,13 @@ function formatReleaseDate(raw) {
 // logo del set arriba (o el nombre escrito con los colores del juego si la
 // API no trae logo, como One Piece), etiqueta con la fecha de salida o el
 // código del set, y abajo el nombre + cuántas cartas tenés.
-export function TcgFolderTile({ folder, gameKey, meta, onOpen, onDelete }) {
+export function TcgFolderTile({ folder, gameKey, meta, prices, onOpen, onDelete }) {
   const game = tcgGame(gameKey);
   const [logoFailed, setLogoFailed] = useState(false);
   const owned = folder.items.filter((it) => it.status === "completo").length;
   const total = folder.items.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
+  const value = prices ? tcgValue(folder.items, prices).owned : 0;
   const badge = formatReleaseDate(meta?.releaseDate) || (!folder.custom && formatSetCode(folder.setId)) || null;
   const showLogo = meta?.logo && !logoFailed;
 
@@ -62,6 +64,7 @@ export function TcgFolderTile({ folder, gameKey, meta, onOpen, onDelete }) {
         </span>
         <span className="tcg-set__count">
           {total === 0 ? "Vacía" : `${owned}/${total} cartas · ${pct}%`}
+          {value > 0 && <span className="tcg-set__value"> · {formatUsd(value)}</span>}
         </span>
       </button>
     </div>
