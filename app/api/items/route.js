@@ -1,5 +1,6 @@
 import { sql, ensureSchema, rowToItem } from "../../../lib/db";
 import { requireUser } from "../../../lib/auth";
+import { cleanMeta } from "../../../lib/manga";
 
 export async function GET(req) {
   const { userId, response } = requireUser(req);
@@ -36,11 +37,12 @@ export async function POST(req) {
     const notes = body.notes || "";
     const coverUrl = body.coverUrl || null;
     const description = (body.description || "").slice(0, 280);
+    const meta = cleanMeta(body.meta) || {};
 
     const { rows } = await sql`
-      INSERT INTO items (title, category, status, unit, current, total, rating, notes, cover_url, description, sort_order, user_id)
+      INSERT INTO items (title, category, status, unit, current, total, rating, notes, cover_url, description, meta, sort_order, user_id)
       VALUES (
-        ${title}, ${category}, ${status}, ${unit}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl}, ${description},
+        ${title}, ${category}, ${status}, ${unit}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl}, ${description}, ${JSON.stringify(meta)}::jsonb,
         COALESCE((SELECT MAX(sort_order) + 1 FROM items WHERE category = ${category} AND user_id = ${userId}), 0),
         ${userId}
       )

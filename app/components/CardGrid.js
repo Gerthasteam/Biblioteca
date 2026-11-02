@@ -5,7 +5,13 @@ import { useDragReorder } from "../../lib/useDragReorder";
 
 export function PosterCard({ record, kind, isExample, onOpen, reorderable, dragging, dragHandlers }) {
   const unit = kind === "anime" ? "Ep." : record.unit || CATEGORY_UNIT[record.category] || "";
-  const label = progressLabel(record.current, record.total, unit);
+  // Manga con tomos cargados: muestra tomos que tenés (y cuántos salieron)
+  // en vez del capítulo.
+  const owned = record.category === "manga" ? (record.meta?.owned || []).length : 0;
+  const label =
+    owned || record.meta?.published
+      ? `Tomos ${owned}${record.meta?.published ? `/${record.meta.published}` : ""}`
+      : progressLabel(record.current, record.total, unit);
   // Las portadas de videojuego vienen de Steam/RAWG en formato apaisado —
   // bien distinto del 2:3 vertical de manga/anime. Con "cover" quedaban
   // recortadas casi hasta perder el logo, así que a esas las mostramos

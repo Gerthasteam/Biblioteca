@@ -22,6 +22,9 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
   const [notes, setNotes] = useState(editing ? editing.notes : "");
   const [coverUrl, setCoverUrl] = useState(editing ? editing.coverUrl || "" : "");
   const [description, setDescription] = useState(editing ? editing.description || "" : "");
+  // Datos de AniList del resultado elegido (autores, géneros, edición
+  // japonesa) — se suman a la ficha de manga al guardar.
+  const [anilist, setAnilist] = useState(null);
   const [saving, setSaving] = useState(false);
 
   function submit(e) {
@@ -43,7 +46,8 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
       rating,
       notes: finalNotes,
       coverUrl: coverUrl.trim() || null,
-      description: category === "manga" ? description.trim().slice(0, 250) : ""
+      description: category === "manga" ? description.trim().slice(0, 250) : "",
+      ...(category === "manga" && anilist ? { meta: { ...(editing?.meta || {}), ...anilist } } : {})
     });
   }
 
@@ -71,6 +75,7 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
                 setTitle(r.title);
                 if (r.cover) setCoverUrl(r.cover);
                 if (r.total && total === "") setTotal(r.total);
+                if (r.anilist) setAnilist(r.anilist);
                 if (r.description) {
                   // Muestra la sinopsis en inglés al toque y la cambia por
                   // la traducción apenas llega — si la traducción falla, se

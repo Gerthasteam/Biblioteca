@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut, Zap, Layers3 } from "lucide-react";
+import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut, Zap, Layers3, Share2 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
@@ -26,6 +26,10 @@ import TcgValuePanel from "./components/TcgValuePanel";
 import TcgQuickAdd from "./components/TcgQuickAdd";
 import TcgPurchasesModal from "./components/TcgPurchasesModal";
 import TcgDecks from "./components/TcgDecks";
+import MangaModal from "./components/MangaModal";
+import ShareModal from "./components/ShareModal";
+import { MangaMissing, MangaPile, MangaNews, MangaStats } from "./components/MangaViews";
+import { SERIES_STATUS_LABEL } from "../lib/manga";
 
 const EXAMPLE_MANGA = [
   { title: "Vinland Saga", category: "manga", current: 112, total: 220, rating: 5, status: "progreso" },
@@ -70,6 +74,10 @@ export default function App() {
   const [tcgCardId, setTcgCardId] = useState(null); // carta TCG abierta en la ventana de detalle
   const [wishlistOpen, setWishlistOpen] = useState(false); // vista "Lista de deseos" dentro de TCG
   const [tcgGameTab, setTcgGameTab] = useState("carpetas"); // dentro de One Piece: "carpetas" | "mazos"
+  const [mangaModalId, setMangaModalId] = useState(null); // ficha de manga abierta
+  const [mangaTab, setMangaTab] = useState("coleccion"); // coleccion | faltan | pila | novedades | stats
+  const [mangaFilter, setMangaFilter] = useState({ publisher: "", author: "", genre: "", seriesStatus: "" });
+  const [shareOpen, setShareOpen] = useState(false);
   const [recommendOpen, setRecommendOpen] = useState(false);
 
   function flashToast(msg) {
@@ -143,7 +151,9 @@ export default function App() {
     if (!AppPlugin) return;
     const sub = AppPlugin.addListener("backButton", () => {
       if (recommendOpen) setRecommendOpen(false);
+      else if (shareOpen) setShareOpen(false);
       else if (itemModal) setItemModal(null);
+      else if (mangaModalId) setMangaModalId(null);
       else if (tcgCardId) setTcgCardId(null);
       else if (gamePickerOpen) setGamePickerOpen(false);
       else if (folderModal) setFolderModal(null);
@@ -158,7 +168,7 @@ export default function App() {
     return () => {
       Promise.resolve(sub).then((h) => h?.remove?.());
     };
-  }, [user, view, recommendOpen, gamePickerOpen, folderModal, itemModal, animeModal, detail, activeTcgFolder, activeTcgGame, tcgCardId, wishlistOpen]);
+  }, [user, view, recommendOpen, gamePickerOpen, folderModal, itemModal, animeModal, detail, activeTcgFolder, activeTcgGame, tcgCardId, wishlistOpen, mangaModalId, shareOpen]);
 
   function handleAuthed(loggedUser) {
     setUser(loggedUser);
@@ -946,8 +956,68 @@ export default function App() {
   }, [detail, items, animes]);
 
   function openDetail(kind, id) {
+    // Los mangas abren su propia ficha (tomos, edición, reseña).
+    if (kind === "item" && items.find((x) => x.id === id)?.category === "manga") {
+      setMangaModalId(id);
+      return;
+    }
     setDetail({ kind, id });
   }
+
+  // ---- Manga: ficha, tomos, filtros ----
+  const mangaModalItem = useMemo(() => (mangaModalId ? items.find((x) => x.id === mangaModalId) : null), [mangaModalId, items]);
+
+  // Guarda los datos extra de una serie (tomos, edición, reseña…).
+  function saveMangaMeta(item, meta) {
+    setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, meta } : it)));
+    const payload = { ...item, meta };
+    delete payload.id;
+    delete payload.createdAt;
+    fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(() => flashToast("No se pudo guardar en el servidor."));
+  }
+
+  // Capítulo por el que vas (el contador de siempre), desde la ficha.
+  function bumpManga(item, delta) {
+    let next = Math.max(0, (item.current || 0) + delta);
+    if (item.total != null) next = Math.min(next, item.total);
+    setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, current: next } : it)));
+    const payload = { ...item, current: next };
+    delete payload.id;
+    delete payload.createdAt;
+    fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(() => flashToast("No se pudo actualizar en el servidor."));
+  }
+
+  // Opciones de los filtros de la colección, armadas con lo que cargaste.
+  const mangaFilterOptions = useMemo(() => {
+    const uniq = (fn) => [...new Set(mangaItems.flatMap(fn).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return {
+      publisher: uniq((it) => [it.meta?.publisher]),
+      author: uniq((it) => it.meta?.authors || []),
+      genre: uniq((it) => it.meta?.genres || []),
+      seriesStatus: uniq((it) => [it.meta?.seriesStatus])
+    };
+  }, [mangaItems]);
+  const filteredManga = useMemo(
+    () =>
+      shownManga.filter((it) => {
+        const m = it.meta || {};
+        if (mangaFilter.publisher && m.publisher !== mangaFilter.publisher) return false;
+        if (mangaFilter.author && !(m.authors || []).includes(mangaFilter.author)) return false;
+        if (mangaFilter.genre && !(m.genres || []).includes(mangaFilter.genre)) return false;
+        if (mangaFilter.seriesStatus && m.seriesStatus !== mangaFilter.seriesStatus) return false;
+        return true;
+      }),
+    [shownManga, mangaFilter]
+  );
+  const mangaFiltering = Object.values(mangaFilter).some(Boolean);
 
   function bump(delta) {
     if (!detail || !detailRecord) return;
@@ -1102,7 +1172,7 @@ export default function App() {
                 </div>
               )}
 
-              {((view === "manga" && !search && mangaItems.length > 1) ||
+              {((view === "manga" && !search && mangaItems.length > 1 && mangaTab === "coleccion" && !mangaFiltering) ||
                 (view === "biblioteca" && categoryFilter === "manga" && !search && mangaItems.length > 1)) && (
                 <p className="section-header__sub" style={{ marginTop: -10, marginBottom: 14 }}>
                   Mantené apretado un manga (click o dedo) y arrastralo para reordenarlo.
@@ -1121,10 +1191,74 @@ export default function App() {
                     <Sparkles size={14} />
                     Recomendación
                   </button>
+                  <button type="button" className="btn subtle" onClick={() => setShareOpen(true)}>
+                    <Share2 size={14} />
+                    Compartir colección
+                  </button>
                 </div>
               )}
 
+              {view === "manga" && mangaItems.length > 0 && (
+                <div className="tcg-game-tabs manga-tabs" role="tablist">
+                  {[
+                    ["coleccion", "Colección"],
+                    ["faltan", "Me faltan"],
+                    ["pila", "Pila de lectura"],
+                    ["novedades", "Novedades"],
+                    ["stats", "Estadísticas"]
+                  ].map(([k, label]) => (
+                    <button key={k} type="button" role="tab" aria-selected={mangaTab === k} className={mangaTab === k ? "active" : ""} onClick={() => setMangaTab(k)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {view === "manga" && mangaItems.length > 0 && mangaTab === "coleccion" && (
+                <div className="manga-filters">
+                  {[
+                    ["publisher", "Editorial"],
+                    ["author", "Autor"],
+                    ["genre", "Género"],
+                    ["seriesStatus", "Estado"]
+                  ].map(([k, label]) =>
+                    mangaFilterOptions[k].length ? (
+                      <select
+                        key={k}
+                        value={mangaFilter[k]}
+                        aria-label={label}
+                        onChange={(e) => setMangaFilter((f) => ({ ...f, [k]: e.target.value }))}
+                      >
+                        <option value="">{label}: todas</option>
+                        {mangaFilterOptions[k].map((o) => (
+                          <option key={o} value={o}>
+                            {k === "seriesStatus" ? SERIES_STATUS_LABEL[o] || o : o}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null
+                  )}
+                  {mangaFiltering && (
+                    <button type="button" className="tcg-value__link" onClick={() => setMangaFilter({ publisher: "", author: "", genre: "", seriesStatus: "" })}>
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {view === "manga" && mangaItems.length > 0 && mangaTab === "faltan" && (
+                <MangaMissing items={mangaItems} onOpen={(id) => setMangaModalId(id)} onSaveMeta={saveMangaMeta} onToggleWish={toggleWish} />
+              )}
+              {view === "manga" && mangaItems.length > 0 && mangaTab === "pila" && (
+                <MangaPile items={mangaItems} onOpen={(id) => setMangaModalId(id)} onSaveMeta={saveMangaMeta} />
+              )}
+              {view === "manga" && mangaItems.length > 0 && mangaTab === "novedades" && (
+                <MangaNews items={mangaItems} onOpen={(id) => setMangaModalId(id)} />
+              )}
+              {view === "manga" && mangaItems.length > 0 && mangaTab === "stats" && <MangaStats items={mangaItems} />}
+
               {view === "manga" &&
+                (mangaItems.length === 0 || mangaTab === "coleccion") &&
                 (mangaItems.length === 0 ? (
                   <>
                     <p className="empty-note" style={{ marginBottom: 16 }}>
@@ -1132,14 +1266,14 @@ export default function App() {
                     </p>
                     <CardGrid records={EXAMPLE_MANGA} kind="item" isExample onOpen={() => {}} />
                   </>
-                ) : shownManga.length === 0 ? (
-                  <p className="empty-note">No hay títulos que coincidan con la búsqueda.</p>
+                ) : filteredManga.length === 0 ? (
+                  <p className="empty-note">No hay títulos que coincidan con la búsqueda o los filtros.</p>
                 ) : (
                   <CardGrid
-                    records={shownManga}
+                    records={filteredManga}
                     kind="item"
                     onOpen={(id) => openDetail("item", id)}
-                    reorderable={!search}
+                    reorderable={!search && !mangaFiltering}
                     onReorder={(ids) => reorderCategory("manga", ids)}
                   />
                 ))}
@@ -1499,6 +1633,27 @@ export default function App() {
           onClose={() => setFolderModal(null)}
         />
       )}
+
+      {mangaModalItem && (
+        <MangaModal
+          item={mangaModalItem}
+          onClose={() => setMangaModalId(null)}
+          onSaveMeta={saveMangaMeta}
+          onBump={(d) => bumpManga(mangaModalItem, d)}
+          onToggleWish={toggleWish}
+          onEdit={() => {
+            setItemModal({ editing: mangaModalItem });
+            setMangaModalId(null);
+          }}
+          onDelete={() => {
+            if (!window.confirm(`¿Eliminar "${mangaModalItem.title}"?`)) return;
+            setMangaModalId(null);
+            deleteItem(mangaModalItem.id);
+          }}
+        />
+      )}
+
+      {shareOpen && <ShareModal onClose={() => setShareOpen(false)} onToast={flashToast} />}
 
       {purchasesOpen && (
         <TcgPurchasesModal

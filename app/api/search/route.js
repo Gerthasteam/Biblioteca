@@ -2,6 +2,7 @@
 // Pokémon TCG / One Piece TCG (TCG). Un servidor real no tiene el CSP del
 // navegador, así que puede llamar a cualquier host — justo el paso que no
 // era posible desde un Artifact.
+import { GENRE_ES } from "../../../lib/manga";
 
 const ANILIST_QUERY = `
 query ($search: String, $type: MediaType) {
@@ -14,6 +15,9 @@ query ($search: String, $type: MediaType) {
       chapters
       volumes
       episodes
+      status
+      genres
+      staff(perPage: 4, sort: RELEVANCE) { edges { role node { name { full } } } }
       description(asHtml: false)
     }
   }
@@ -31,6 +35,24 @@ function shortDescription(raw) {
   const cut = text.slice(0, LIMIT);
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > LIMIT * 0.6 ? cut.slice(0, lastSpace) : cut).trim() + "…";
+}
+
+// Autores (guion y dibujo, sin repetir), géneros en castellano y el estado
+// y la cantidad de tomos de la edición japonesa.
+const JP_STATUS = { RELEASING: "en_curso", FINISHED: "finalizada", HIATUS: "pausada", CANCELLED: "cancelada", NOT_YET_RELEASED: "" };
+function anilistMeta(m) {
+  const authors = [];
+  for (const e of m.staff?.edges || []) {
+    const name = e.node?.name?.full;
+    if (name && /story|art|original/i.test(e.role || "") && !authors.includes(name)) authors.push(name);
+  }
+  return {
+    anilistId: m.id,
+    authors,
+    genres: (m.genres || []).map((g) => GENRE_ES[g] || g),
+    jpStatus: JP_STATUS[m.status] ?? "",
+    jpVolumes: m.volumes || null
+  };
 }
 
 export async function GET(req) {
@@ -63,7 +85,9 @@ async function searchAniList(q, type) {
       cover: m.coverImage?.large || null,
       year: m.startDate?.year || null,
       total: type === "ANIME" ? m.episodes || null : m.volumes || m.chapters || null,
-      description: shortDescription(m.description)
+      description: shortDescription(m.description),
+      // datos para la ficha de manga (autores, géneros, edición japonesa)
+      anilist: anilistMeta(m)
     }));
     return Response.json({ results });
   } catch {
