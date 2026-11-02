@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut } from "lucide-react";
+import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut } from "lucide-react";
 import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
@@ -14,7 +14,7 @@ import AnimeModal from "./components/AnimeModal";
 import DetailModal from "./components/DetailModal";
 import TcgFolderModal from "./components/TcgFolderModal";
 import RecommendationModal from "./components/RecommendationModal";
-import { TcgLogo, TcgGameTile, TcgAddGameTile, TcgGamePicker } from "./components/TcgGames";
+import { TcgLogo, TcgGameTile, TcgAddGameTile, TcgGamePicker, TcgFolderTile } from "./components/TcgGames";
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
 import { TCG_GAMES, tcgGame } from "../lib/tcgGames";
@@ -194,6 +194,22 @@ export default function App() {
     () => (activeTcgGame ? tcgFolders.filter((f) => f.group === activeTcgGame) : []),
     [tcgFolders, activeTcgGame]
   );
+
+  // Logo y fecha de cada expansión (solo los juegos con API: Pokémon trae
+  // las dos cosas, One Piece ninguna). Se pide una vez por juego al entrar.
+  const [setMeta, setSetMeta] = useState({}); // { pokemon: { sv3: { logo, releaseDate } } }
+  useEffect(() => {
+    if (!activeTcgGame || !tcgGame(activeTcgGame).api || setMeta[activeTcgGame]) return;
+    const game = activeTcgGame;
+    fetch(`/api/tcg/sets?game=${game}`)
+      .then((r) => r.json())
+      .then((json) => {
+        const byId = {};
+        for (const s of json.sets || []) byId[s.id] = { logo: s.logo, releaseDate: s.releaseDate };
+        if (Object.keys(byId).length) setSetMeta((prev) => ({ ...prev, [game]: byId }));
+      })
+      .catch(() => {});
+  }, [activeTcgGame, setMeta]);
 
   function gameStats(gameKey) {
     const folders = tcgFolders.filter((f) => f.group === gameKey);
@@ -813,52 +829,18 @@ export default function App() {
                           </p>
                         </div>
                       ) : (
-                    <div className="tcg-folder-list">
-                      {gameFolders.map((f) => {
-                        const owned = f.items.filter((it) => it.status === "completo").length;
-                        const total = f.items.length;
-                        const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
-                        const cover = f.items[0]?.coverUrl;
-                        const code = !f.custom && formatSetCode(f.setId);
-                        const meta = [code, total === 0 ? "0 cartas" : `${owned}/${total} cartas`]
-                          .filter(Boolean)
-                          .join(" · ");
-                        return (
-                          <div key={f.key} className="tcg-folder-row">
-                            <button
-                              type="button"
-                              className="tcg-folder-row__open"
-                              onClick={() => setActiveTcgFolder(f)}
-                            >
-                              <span className="tcg-folder-row__cover">
-                                {cover ? <img src={cover} alt="" /> : <Folder size={18} />}
-                              </span>
-                              <span className="tcg-folder-row__body">
-                                <span className="tcg-folder-row__top">
-                                  <span className="tcg-folder-row__name">{f.setName}</span>
-                                  <span className="tcg-folder-row__pct">{total === 0 ? "Vacía" : `${pct}%`}</span>
-                                </span>
-                                <span className="tcg-folder-row__meta">{meta}</span>
-                                <span className="tcg-folder-row__bar">
-                                  <span className="tcg-folder-row__bar-fill" style={{ width: pct + "%" }} />
-                                </span>
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              className="tcg-folder-row__delete"
-                              title="Borrar carpeta"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteTcgFolder(f, f.items.map((it) => it.id));
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                        <div className="tcg-set-grid">
+                          {gameFolders.map((f) => (
+                            <TcgFolderTile
+                              key={f.key}
+                              folder={f}
+                              gameKey={activeTcgGame}
+                              meta={setMeta[activeTcgGame]?.[f.setId]}
+                              onOpen={() => setActiveTcgFolder(f)}
+                              onDelete={() => deleteTcgFolder(f, f.items.map((it) => it.id))}
+                            />
+                          ))}
+                        </div>
                       )}
                     </>
                   )}

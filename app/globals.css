@@ -471,6 +471,48 @@ a{ color:inherit; }
 .tcg-game-grid--picker .tcg-game-tile{ padding:10px; }
 .tcg-game-grid--picker .tcg-wordmark{ font-size:1rem; }
 .modal--wide{ max-width:720px; }
+
+/* carpetas (expansiones) dentro de un juego: grilla de recuadros con logo */
+.tcg-set-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px,1fr)); gap:18px 16px; }
+.tcg-set{ position:relative; display:flex; flex-direction:column; gap:8px; }
+.tcg-set__card{
+  position:relative; aspect-ratio:16/9; width:100%; border-radius:12px; cursor:pointer; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; padding:18px 14px;
+  background:linear-gradient(160deg, var(--surface-2), var(--bg-soft));
+  border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);
+  transition:transform .12s ease, border-color .12s ease;
+}
+.tcg-set__card:hover{ transform:translateY(-3px); border-color:var(--secondary); }
+.tcg-set__logo{ max-width:86%; max-height:78%; object-fit:contain; filter:drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.tcg-set__wordmark{
+  font-family:'Shippori Mincho', serif; font-weight:800; font-size:1.08rem; line-height:1.15;
+  text-align:center; text-transform:uppercase; letter-spacing:.02em; text-wrap:balance;
+}
+.tcg-set__badge{
+  position:absolute; top:6px; right:6px; font-size:.62rem; font-weight:600; color:var(--text-muted);
+  background:rgba(13,10,20,.7); border:1px solid var(--border-soft); border-radius:6px; padding:2px 6px;
+}
+.tcg-set__bar{ position:absolute; left:0; right:0; bottom:0; height:4px; background:rgba(255,255,255,.06); }
+.tcg-set__bar-fill{ display:block; height:100%; background:linear-gradient(90deg,var(--secondary),var(--accent)); }
+.tcg-set__delete{
+  position:absolute; top:6px; left:6px; width:26px; height:26px; border-radius:50%; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(13,10,20,.7); color:var(--text-faint); opacity:0; transition:opacity .12s ease, background .12s ease;
+}
+.tcg-set:hover .tcg-set__delete{ opacity:1; }
+.tcg-set__delete:hover{ background:var(--danger); color:#fff; }
+.tcg-set__info{ display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center; background:none; border:none; cursor:pointer; padding:0 4px; }
+.tcg-set__name{ font-size:.9rem; font-weight:700; line-height:1.25; }
+.tcg-set__count{ font-size:.74rem; color:var(--text-muted); }
+@media (hover:none){ .tcg-set__delete{ opacity:.85; } }
+@media (max-width:560px){
+  .tcg-set-grid{ grid-template-columns:repeat(2,1fr); gap:14px 10px; }
+  /* botones de arriba de un juego (Mis TCG, Agregar expansión…) de a dos */
+  .tcg-game-row{ display:grid; grid-template-columns:1fr 1fr; }
+  .tcg-game-row .btn{ min-height:40px; padding:8px 10px; font-size:.76rem; }
+  .tcg-set__wordmark{ font-size:.86rem; }
+  .tcg-set__name{ font-size:.8rem; }
+}
 @media (max-width:560px){
   .tcg-game-grid{ grid-template-columns:repeat(2,1fr); gap:10px; }
   .tcg-wordmark{ font-size:1rem; }
