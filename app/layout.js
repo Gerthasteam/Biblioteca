@@ -5,6 +5,15 @@ export const metadata = {
   description: "Tu colección de manga, TCG, videojuegos y anime"
 };
 
+// viewportFit "cover" + env(safe-area-inset-*) en globals.css para que en
+// teléfonos con notch / barra de gestos la barra de abajo no quede tapada.
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0D0A14"
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="es">

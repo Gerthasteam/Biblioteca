@@ -114,15 +114,7 @@ export default function Binder({ items, isExample, onToggleOwned, onEdit, reorde
               onEdit={onEdit}
               reorderable={reorderable}
               dragging={page[i] && drag.draggingId === page[i].id}
-              dragHandlers={
-                page[i]
-                  ? {
-                      onDragStart: drag.onDragStart(page[i].id),
-                      onDragOver: drag.onDragOver(page[i].id),
-                      onDragEnd: drag.onDragEnd
-                    }
-                  : undefined
-              }
+              dragHandlers={page[i] ? drag.handlers(page[i].id) : undefined}
             />
           ))}
         </div>

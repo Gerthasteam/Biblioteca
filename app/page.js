@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Plus, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Download, Sparkles, LogOut } from "lucide-react";
+import { Search, Plus, Folder, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut } from "lucide-react";
 import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
@@ -13,7 +13,6 @@ import ItemModal from "./components/ItemModal";
 import AnimeModal from "./components/AnimeModal";
 import DetailModal from "./components/DetailModal";
 import TcgFolderModal from "./components/TcgFolderModal";
-import SteamImportModal from "./components/SteamImportModal";
 import RecommendationModal from "./components/RecommendationModal";
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
@@ -21,9 +20,6 @@ import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
 const EXAMPLE_MANGA = [
   { title: "Vinland Saga", category: "manga", current: 112, total: 220, rating: 5, status: "progreso" },
   { title: "Berserk", category: "manga", current: 41, total: 41, rating: 5, status: "completo" }
-];
-const EXAMPLE_GAMES = [
-  { title: "Elden Ring", category: "videojuego", current: 40, total: null, rating: 5, status: "progreso" }
 ];
 const EXAMPLE_TCG = [
   { title: "Pokémon TCG · Base Set", category: "tcg", current: 60, total: 102, rating: 4, status: "progreso" },
@@ -37,7 +33,7 @@ const EXAMPLE_ANIMES = [
 const VIEW_META = {
   manga: { title: "Manga", tag: "Colección" },
   anime: { title: "Anime", tag: "Colección" },
-  videojuego: { title: "Videojuegos", tag: "Colección" },
+  tcg: { title: "TCG", tag: "Carpetas de cartas" },
   biblioteca: { title: "Biblioteca", tag: "Todo junto" }
 };
 
@@ -58,7 +54,6 @@ export default function App() {
   const [detail, setDetail] = useState(null); // { kind, id } | null
   const [folderModal, setFolderModal] = useState(null); // { game } | null
   const [activeTcgFolder, setActiveTcgFolder] = useState(null); // { key, game, setId, setName } | null
-  const [steamImportOpen, setSteamImportOpen] = useState(false);
   const [recommendOpen, setRecommendOpen] = useState(false);
 
   function flashToast(msg) {
@@ -114,6 +109,29 @@ export default function App() {
     if (user) loadAll();
   }, [user]);
 
+  // Botón "atrás" de Android (solo dentro de la app instalada — el APK de
+  // Capacitor expone window.Capacitor). Sin esto, atrás cerraba la app
+  // entera aunque tuvieras un modal abierto, porque la web no usa el
+  // historial del navegador. Va cerrando de a una cosa: modal → carpeta TCG
+  // → sección → recién ahí sale de la app.
+  useEffect(() => {
+    const AppPlugin = typeof window !== "undefined" && window.Capacitor?.Plugins?.App;
+    if (!AppPlugin) return;
+    const sub = AppPlugin.addListener("backButton", () => {
+      if (recommendOpen) setRecommendOpen(false);
+      else if (folderModal) setFolderModal(null);
+      else if (itemModal) setItemModal(null);
+      else if (animeModal) setAnimeModal(null);
+      else if (detail) setDetail(null);
+      else if (activeTcgFolder) setActiveTcgFolder(null);
+      else if (user && view !== "home") navigate("home");
+      else AppPlugin.exitApp();
+    });
+    return () => {
+      Promise.resolve(sub).then((h) => h?.remove?.());
+    };
+  }, [user, view, recommendOpen, folderModal, itemModal, animeModal, detail, activeTcgFolder]);
+
   function handleAuthed(loggedUser) {
     setUser(loggedUser);
   }
@@ -134,13 +152,13 @@ export default function App() {
   }
 
   const mangaItems = useMemo(() => items.filter((i) => i.category === "manga"), [items]);
-  const gameItems = useMemo(() => items.filter((i) => i.category === "videojuego"), [items]);
+  const tcgItems = useMemo(() => items.filter((i) => i.category === "tcg"), [items]);
 
   const filterBySearch = (list, key = "title") =>
     !search ? list : list.filter((r) => r[key].toLowerCase().includes(search.toLowerCase()));
 
   const shownManga = useMemo(() => filterBySearch(mangaItems), [mangaItems, search]);
-  const shownGames = useMemo(() => filterBySearch(gameItems), [gameItems, search]);
+  const shownTcg = useMemo(() => filterBySearch(tcgItems), [tcgItems, search]);
   const shownAnimes = useMemo(() => filterBySearch(animes), [animes, search]);
   const shownLibrary = useMemo(() => {
     const list = items.filter((i) => i.category === categoryFilter);
@@ -245,7 +263,7 @@ export default function App() {
       if (!res.ok) throw new Error(json.message || "error");
       setItems((prev) => [...prev, ...(json.items || [])]);
       setFolderModal(null);
-      setCategoryFilter("tcg");
+      setView("tcg");
       setActiveTcgFolder({ game: meta.game, setId: meta.set.id, setName: meta.set.name });
       flashToast(
         json.items.length
@@ -257,32 +275,52 @@ export default function App() {
     }
   }
 
-  // Importar de Steam: la lista ya viene armada (con checkboxes) desde
-  // SteamImportModal, acá solo la mandamos en bloque igual que exportTcgSet.
-  async function importSteamGames(payloadItems) {
-    try {
-      const res = await fetch("/api/items/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: payloadItems })
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "error");
-      setItems((prev) => [...prev, ...(json.items || [])]);
-      setSteamImportOpen(false);
-      flashToast(
-        json.items.length
-          ? `Se importaron ${json.items.length} juego${json.items.length === 1 ? "" : "s"} de Steam.`
-          : "No había juegos nuevos para importar."
-      );
-    } catch (err) {
-      flashToast("No se pudo importar: " + err.message);
-    }
-  }
+  // DESACTIVADO junto con la sección Videojuegos (ver SteamImportModal.js).
+  // Para volver: descomentar esto, el import de SteamImportModal y Download,
+  // el estado steamImportOpen, el botón y el modal de más abajo.
+  //
+  // const [steamImportOpen, setSteamImportOpen] = useState(false);
+  //
+  // // Importar de Steam: la lista ya viene armada (con checkboxes) desde
+  // // SteamImportModal, acá solo la mandamos en bloque igual que exportTcgSet.
+  // async function importSteamGames(payloadItems) {
+  //   try {
+  //     const res = await fetch("/api/items/bulk", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ items: payloadItems })
+  //     });
+  //     const json = await res.json();
+  //     if (!res.ok) throw new Error(json.message || "error");
+  //     setItems((prev) => [...prev, ...(json.items || [])]);
+  //     setSteamImportOpen(false);
+  //     flashToast(
+  //       json.items.length
+  //         ? `Se importaron ${json.items.length} juego${json.items.length === 1 ? "" : "s"} de Steam.`
+  //         : "No había juegos nuevos para importar."
+  //     );
+  //   } catch (err) {
+  //     flashToast("No se pudo importar: " + err.message);
+  //   }
+  // }
+  //
+  // Botón (iba arriba de la grilla de videojuegos):
+  //   <button type="button" className="btn subtle" onClick={() => setSteamImportOpen(true)}>
+  //     <Download size={14} /> Importar de Steam
+  //   </button>
+  //
+  // Modal (iba al final, junto a los otros modales):
+  //   {steamImportOpen && (
+  //     <SteamImportModal
+  //       existingTitles={new Set(gameItems.map((g) => g.title.toLowerCase().trim()))}
+  //       onClose={() => setSteamImportOpen(false)}
+  //       onImport={importSteamGames}
+  //     />
+  //   )}
 
   function openTcgFolder(folder) {
     setFolderModal(null);
-    setCategoryFilter("tcg");
+    setView("tcg");
     setActiveTcgFolder(folder);
   }
 
@@ -300,7 +338,7 @@ export default function App() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "error");
       setCustomFolders((prev) => [...prev, json.folder]);
-      setCategoryFilter("tcg");
+      setView("tcg");
       setActiveTcgFolder({
         key: `custom:${json.folder.id}`,
         game: "custom",
@@ -431,7 +469,7 @@ export default function App() {
 
   function openAddModal() {
     if (view === "anime") setAnimeModal({ editing: null });
-    else if (view === "videojuego") setItemModal({ editing: null, defaultCategory: "videojuego" });
+    else if (view === "tcg") setItemModal({ editing: null, defaultCategory: "tcg" });
     else if (view === "biblioteca") setItemModal({ editing: null, defaultCategory: categoryFilter });
     else setItemModal({ editing: null, defaultCategory: "manga" });
   }
@@ -486,7 +524,7 @@ export default function App() {
               <section className="toolbar">
                 <div className="toolbar__filters">
                   {view === "biblioteca" &&
-                    ["manga", "tcg", "otro"].map((c) => (
+                    ["manga", "otro"].map((c) => (
                       <button
                         key={c}
                         type="button"
@@ -515,7 +553,7 @@ export default function App() {
                 </div>
               </section>
 
-              {view === "biblioteca" && categoryFilter === "tcg" && !activeTcgFolder && (
+              {view === "tcg" && !activeTcgFolder && (
                 <div className="tcg-game-row">
                   <button type="button" className="btn subtle" onClick={() => setFolderModal({ game: "onepiece" })}>
                     One Piece
@@ -530,13 +568,13 @@ export default function App() {
               {((view === "manga" && !search && mangaItems.length > 1) ||
                 (view === "biblioteca" && categoryFilter === "manga" && !search && mangaItems.length > 1)) && (
                 <p className="section-header__sub" style={{ marginTop: -10, marginBottom: 14 }}>
-                  Mantené el click apretado sobre un manga para arrastrarlo y reordenarlo.
+                  Mantené apretado un manga (click o dedo) y arrastralo para reordenarlo.
                 </p>
               )}
 
-              {view === "biblioteca" && categoryFilter === "tcg" && activeTcgFolder && !search && activeFolderItems.length > 1 && (
+              {view === "tcg" && activeTcgFolder && !search && activeFolderItems.length > 1 && (
                 <p className="section-header__sub" style={{ marginTop: -10, marginBottom: 14 }}>
-                  Mantené el click apretado sobre una carta para arrastrarla y reordenarla.
+                  Mantené apretada una carta (click o dedo) y arrastrala para reordenarla.
                 </p>
               )}
 
@@ -569,29 +607,6 @@ export default function App() {
                   />
                 ))}
 
-              {view === "videojuego" && (
-                <div className="tcg-game-row">
-                  <button type="button" className="btn subtle" onClick={() => setSteamImportOpen(true)}>
-                    <Download size={14} />
-                    Importar de Steam
-                  </button>
-                </div>
-              )}
-
-              {view === "videojuego" &&
-                (gameItems.length === 0 ? (
-                  <>
-                    <p className="empty-note" style={{ marginBottom: 16 }}>
-                      Así se van a ver tus videojuegos — agregá el primero para reemplazar el ejemplo.
-                    </p>
-                    <CardGrid records={EXAMPLE_GAMES} kind="item" isExample onOpen={() => {}} />
-                  </>
-                ) : shownGames.length === 0 ? (
-                  <p className="empty-note">No hay títulos que coincidan con la búsqueda.</p>
-                ) : (
-                  <CardGrid records={shownGames} kind="item" onOpen={(id) => openDetail("item", id)} />
-                ))}
-
               {view === "anime" &&
                 (animes.length === 0 ? (
                   <>
@@ -606,13 +621,13 @@ export default function App() {
                   <CardGrid records={shownAnimes} kind="anime" onOpen={(id) => openDetail("anime", id)} />
                 ))}
 
-              {view === "biblioteca" && categoryFilter === "tcg" && (
+              {view === "tcg" && (
                 <>
                   {search ? (
-                    shownLibrary.length === 0 ? (
+                    shownTcg.length === 0 ? (
                       <p className="empty-note">No hay cartas que coincidan con la búsqueda.</p>
                     ) : (
-                      <Binder items={shownLibrary} onToggleOwned={toggleOwned} onEdit={(id) => openDetail("item", id)} />
+                      <Binder items={shownTcg} onToggleOwned={toggleOwned} onEdit={(id) => openDetail("item", id)} />
                     )
                   ) : activeTcgFolder ? (
                     <>
@@ -739,7 +754,6 @@ export default function App() {
               )}
 
               {view === "biblioteca" &&
-                categoryFilter !== "tcg" &&
                 (items.length === 0 ? (
                   <>
                     <p className="empty-note shelf-empty-note" style={{ marginBottom: 16 }}>
@@ -807,14 +821,6 @@ export default function App() {
           onExport={exportTcgSet}
           onOpenFolder={openTcgFolder}
           onClose={() => setFolderModal(null)}
-        />
-      )}
-
-      {steamImportOpen && (
-        <SteamImportModal
-          existingTitles={new Set(gameItems.map((g) => g.title.toLowerCase().trim()))}
-          onClose={() => setSteamImportOpen(false)}
-          onImport={importSteamGames}
         />
       )}
 

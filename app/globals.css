@@ -106,7 +106,7 @@ a{ color:inherit; }
   .sidebar{ display:none; }
   .topbar{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:16px 18px; border-bottom:1px solid var(--border-soft); background:var(--bg-soft);
+    padding:calc(16px + env(safe-area-inset-top)) 18px 16px; border-bottom:1px solid var(--border-soft); background:var(--bg-soft);
     position:sticky; top:0; z-index:8;
   }
   .topbar__brand{ display:flex; align-items:center; gap:9px; }
@@ -117,9 +117,10 @@ a{ color:inherit; }
   }
   .topbar__logo img{ width:135%; height:135%; object-fit:cover; object-position:48% 15%; }
   .topbar__title{ font-family:'Shippori Mincho', serif; font-weight:800; font-size:1rem; }
-  .main{ padding:18px 16px calc(var(--bottomnav-h) + 24px); }
+  .main{ padding:18px 16px calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + 24px); }
   .bottom-nav{
-    display:flex; position:fixed; bottom:0; left:0; right:0; height:var(--bottomnav-h);
+    display:flex; position:fixed; bottom:0; left:0; right:0;
+    height:calc(var(--bottomnav-h) + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom);
     background:var(--bg-soft); border-top:1px solid var(--border-soft); z-index:9;
   }
   .bottom-nav__item{
@@ -205,7 +206,7 @@ a{ color:inherit; }
 .quick-card{ background-size:cover; background-position:center; }
 .quick-card--manga{ background-image:linear-gradient(135deg, var(--primary), #3D2A57); }
 .quick-card--anime{ background-image:linear-gradient(135deg, var(--secondary), var(--primary)); }
-.quick-card--videojuego{ background-image:linear-gradient(135deg, #5E9A3D, var(--accent)); }
+.quick-card--tcg{ background-image:linear-gradient(135deg, #5E9A3D, var(--accent)); }
 
 /* ---------- poster grid ---------- */
 .poster-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:18px; }
@@ -505,7 +506,6 @@ a{ color:inherit; }
   background:var(--surface); border:1px solid var(--border); color:var(--text); padding:10px 18px; border-radius:var(--radius-sm); font-size:.82rem; box-shadow:var(--shadow); z-index:40;
 }
 
-@media (max-width:900px){ .toast{ bottom: calc(var(--bottomnav-h) + 14px); } }
 
 @media (max-width:560px){
   .row2{ grid-template-columns:1fr; }
@@ -529,6 +529,33 @@ a{ color:inherit; }
   .modal__actions{ flex-direction:column-reverse; align-items:stretch; }
   .modal__actions-right{ flex-direction:column; width:100%; }
   .modal__actions .btn{ width:100%; justify-content:center; }
+}
+
+/* Pantallas táctiles (celular, tablet, la app instalada): sin el recuadro
+   azul al tocar, sin el menú de "copiar/guardar imagen" al mantener
+   apretado algo reordenable, y lo que antes solo aparecía con hover
+   (nombre de la carta, lápiz de editar) queda siempre visible. */
+button, a{ -webkit-tap-highlight-color:transparent; }
+[data-reorder-id]{ -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+@media (hover:none){
+  .spine:hover, .poster-card:hover .poster-card__img, .binder-pocket:hover{ transform:none; }
+  .binder-pocket__title{ opacity:1; }
+  .binder-pocket__edit{ opacity:.9; width:28px; height:28px; }
+  .icon-btn{ width:40px; height:40px; }
+  .bump-row button{ width:44px; height:44px; font-size:1.15rem; }
+  .tcg-folder-row__delete{ width:38px; height:38px; }
+}
+
+/* Tablet en vertical (barra de abajo, pero pantalla ancha): un poco más de
+   aire a los costados y portadas algo más grandes que en el teléfono. */
+@media (min-width:600px) and (max-width:900px){
+  .main{ padding-left:28px; padding-right:28px; }
+  .poster-grid{ grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:20px; }
+  .bottom-nav__item{ font-size:.72rem; }
+}
+
+@media (max-width:900px){
+  .toast{ bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + 14px); }
 }
 
 /* Importar de Steam */

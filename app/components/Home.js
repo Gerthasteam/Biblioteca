@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { BookOpen, Tv, Gamepad2 } from "lucide-react";
+import { BookOpen, Tv, Layers } from "lucide-react";
 import { PosterCard } from "./CardGrid";
 
 // El último título de cada categoría (por fecha en que lo agregaste) se usa
@@ -15,29 +15,30 @@ function latestOf(list) {
 
 function coverStyle(latest) {
   if (!latest?.coverUrl) return undefined;
-  // Las portadas de videojuego son apaisadas, no verticales como las de
-  // manga/anime — con "cover" se recortaban feo, así que a esas se las
-  // muestra completas (contain) en vez de rellenar todo el recuadro.
-  const contain = latest.category === "videojuego";
   return {
     backgroundImage: `linear-gradient(160deg, rgba(13,10,20,.7), rgba(13,10,20,.9)), url('${latest.coverUrl.replace(/'/g, "%27")}')`,
-    backgroundSize: contain ? "contain" : "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: contain ? "no-repeat" : undefined
+    backgroundSize: "cover",
+    backgroundPosition: "center"
   };
 }
 
 export default function Home({ items, animes, onNavigate, onOpen }) {
   const mangaItems = useMemo(() => items.filter((i) => i.category === "manga"), [items]);
-  const gameItems = useMemo(() => items.filter((i) => i.category === "videojuego"), [items]);
+  // En TCG lo que cuenta es la carta que ya tenés (prendida en la carpeta),
+  // no las que se exportaron apagadas con el set completo.
+  const tcgItems = useMemo(() => items.filter((i) => i.category === "tcg"), [items]);
+  const tcgOwned = useMemo(() => tcgItems.filter((i) => i.status === "completo"), [tcgItems]);
 
   const latestManga = useMemo(() => latestOf(mangaItems), [mangaItems]);
   const latestAnime = useMemo(() => latestOf(animes), [animes]);
-  const latestGame = useMemo(() => latestOf(gameItems), [gameItems]);
+  const latestTcg = useMemo(() => latestOf(tcgOwned), [tcgOwned]);
 
+  // Los videojuegos ya no tienen sección — si quedó alguno cargado de antes
+  // no lo mostramos acá. Las cartas TCG tampoco: con una expansión
+  // exportada entera llenarían la fila de cartas apagadas.
   const recientes = useMemo(() => {
     const tagged = [
-      ...items.map((i) => ({ ...i, kind: "item" })),
+      ...items.filter((i) => i.category !== "videojuego" && i.category !== "tcg").map((i) => ({ ...i, kind: "item" })),
       ...animes.map((a) => ({ ...a, kind: "anime" }))
     ];
     return tagged
@@ -50,7 +51,7 @@ export default function Home({ items, animes, onNavigate, onOpen }) {
     <div>
       <section className="hero">
         <h1>¡Hola!</h1>
-        <p>Tu colección de manga, anime y videojuegos, en un solo lugar.</p>
+        <p>Tu colección de manga, anime y cartas TCG, en un solo lugar.</p>
         <div className="hero__stats">
           <div className="hero__stat">
             <span className="hero__stat-icon"><BookOpen size={18} /></span>
@@ -67,10 +68,10 @@ export default function Home({ items, animes, onNavigate, onOpen }) {
             </div>
           </div>
           <div className="hero__stat">
-            <span className="hero__stat-icon"><Gamepad2 size={18} /></span>
+            <span className="hero__stat-icon"><Layers size={18} /></span>
             <div>
-              <b>{gameItems.length}</b>
-              <span>Videojuegos</span>
+              <b>{tcgOwned.length}</b>
+              <span>Cartas</span>
             </div>
           </div>
         </div>
@@ -125,14 +126,14 @@ export default function Home({ items, animes, onNavigate, onOpen }) {
           </button>
           <button
             type="button"
-            className="quick-card quick-card--videojuego"
-            style={coverStyle(latestGame)}
-            onClick={() => onNavigate("videojuego")}
+            className="quick-card quick-card--tcg"
+            style={coverStyle(latestTcg)}
+            onClick={() => onNavigate("tcg")}
           >
-            <Gamepad2 size={22} />
+            <Layers size={22} />
             <div>
-              <b>{gameItems.length}</b>
-              <span>Videojuegos</span>
+              <b>{tcgOwned.length}</b>
+              <span>Cartas TCG</span>
             </div>
           </button>
         </div>

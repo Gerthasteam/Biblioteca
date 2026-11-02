@@ -1,3 +1,9 @@
+// DESACTIVADO (2026-11-02): la sección Videojuegos se sacó del menú, así que
+// "Importar de Steam" ya no se usa. Se deja el código comentado (no borrado)
+// por si algún día vuelve: sacar el /* de abajo y el */ del final, y volver a
+// conectar el botón y el modal en app/page.js (también quedaron comentados).
+
+/*
 // Server-side proxy a la Steam Web API para traer TODA la biblioteca de
 // Steam de una — no confundir con el buscador público de la tienda que ya
 // usa /api/search (ese no necesita key). Esto sí necesita una API key
@@ -79,3 +85,4 @@ async function resolveSteamId(raw, key) {
     return null;
   }
 }
+*/

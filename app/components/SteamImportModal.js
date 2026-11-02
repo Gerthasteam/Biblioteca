@@ -1,3 +1,9 @@
+// DESACTIVADO (2026-11-02): la sección Videojuegos se sacó del menú, así que
+// "Importar de Steam" ya no se usa. Se deja el código comentado (no borrado)
+// por si algún día vuelve: sacar el /* de abajo y el */ del final, y volver a
+// conectar el botón y el modal en app/page.js (también quedaron comentados).
+
+/*
 "use client";
 
 import { useState } from "react";
@@ -154,3 +160,4 @@ export default function SteamImportModal({ existingTitles, onClose, onImport }) 
     </div>
   );
 }
+*/

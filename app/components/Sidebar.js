@@ -1,12 +1,12 @@
 "use client";
 
-import { Home, BookOpen, Tv, Gamepad2, Library, LogOut } from "lucide-react";
+import { Home, BookOpen, Tv, Layers, Library, LogOut } from "lucide-react";
 
 export const NAV_ITEMS = [
   { key: "home", label: "Inicio", icon: Home },
   { key: "manga", label: "Manga", icon: BookOpen },
   { key: "anime", label: "Anime", icon: Tv },
-  { key: "videojuego", label: "Videojuegos", icon: Gamepad2 },
+  { key: "tcg", label: "TCG", icon: Layers },
   { key: "biblioteca", label: "Biblioteca", icon: Library }
 ];
 
@@ -20,7 +20,7 @@ export default function Sidebar({ view, onNavigate, user, onLogout }) {
             <div className="sidebar__brand-title">
               Mi <span>Colección</span>
             </div>
-            <div className="sidebar__brand-tag">Manga · Anime · Videojuegos</div>
+            <div className="sidebar__brand-tag">Manga · Anime · TCG</div>
           </div>
         </button>
 

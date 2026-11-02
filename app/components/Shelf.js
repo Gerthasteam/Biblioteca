@@ -87,11 +87,7 @@ export default function Shelf({ items, isExample, onOpen, reorderable, onReorder
               onLeave={handleLeave}
               reorderable={reorderable}
               dragging={drag.draggingId === it.id}
-              dragHandlers={{
-                onDragStart: drag.onDragStart(it.id),
-                onDragOver: drag.onDragOver(it.id),
-                onDragEnd: drag.onDragEnd
-              }}
+              dragHandlers={drag.handlers(it.id)}
             />
           ))}
         </div>

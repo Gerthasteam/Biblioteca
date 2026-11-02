@@ -121,7 +121,9 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
           <div className="field">
             <label>Categoría</label>
             <div className="pill-group">
-              {["manga", "tcg", "videojuego", "otro"].map((c) => (
+              {/* Videojuego ya no es una sección; solo aparece si estás
+                  editando algo que se cargó así antes. */}
+              {["manga", "tcg", ...(editing?.category === "videojuego" ? ["videojuego"] : []), "otro"].map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -149,7 +151,7 @@ export default function ItemModal({ editing, defaultCategory, tcgFolderTarget, o
           <input
             id="itemCover"
             type="text"
-            placeholder="Se completa sola si buscás arriba (manga, videojuego o TCG)"
+            placeholder="Se completa sola si buscás arriba (manga o TCG)"
             value={coverUrl}
             onChange={(e) => setCoverUrl(e.target.value)}
           />

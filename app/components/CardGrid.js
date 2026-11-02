@@ -51,11 +51,7 @@ export default function CardGrid({ records, kind, isExample, onOpen, reorderable
           onOpen={onOpen}
           reorderable={reorderable}
           dragging={drag.draggingId === r.id}
-          dragHandlers={{
-            onDragStart: drag.onDragStart(r.id),
-            onDragOver: drag.onDragOver(r.id),
-            onDragEnd: drag.onDragEnd
-          }}
+          dragHandlers={drag.handlers(r.id)}
         />
       ))}
     </div>
