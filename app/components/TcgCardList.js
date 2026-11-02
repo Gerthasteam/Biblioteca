@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Minus, Plus, Pencil } from "lucide-react";
+import { Minus, Plus, Star } from "lucide-react";
 import { posterBackground } from "../../lib/ui";
 import { tcgCardKey, tcgQuantity, rarityRank, formatUsd } from "../../lib/tcgCard";
+import { parseSetName } from "../../lib/tcgRef";
 
 const STATUS_FILTERS = [
   { key: "todas", label: "Todas" },
@@ -33,9 +34,13 @@ function numberSortKey(n) {
 // todas las cartas en una grilla con número, rareza, color, si es paralela,
 // precio y cuántas copias tenés, con filtros y orden. Los datos de la carta
 // (info) vienen de la API del juego; las cartas de carpetas armadas a mano
-// no tienen info y se muestran solo con nombre e imagen.
-export default function TcgCardList({ items, info, prices, onToggleOwned, onSetQuantity, onEdit }) {
-  const [status, setStatus] = useState("todas");
+// no tienen info y se muestran solo con nombre e imagen. Tocar la imagen
+// prende/apaga la carta; tocar el nombre abre el detalle.
+// info puede ser un mapa { clave: carta } (una carpeta) o una función
+// item -> carta (la lista de deseos, que mezcla sets); showSet muestra de
+// qué set es cada carta.
+export default function TcgCardList({ items, info, prices, onToggleOwned, onSetQuantity, onToggleWish, onOpen, showSet, defaultStatus = "todas" }) {
+  const [status, setStatus] = useState(defaultStatus);
   const [rarity, setRarity] = useState("todas");
   const [color, setColor] = useState("todos");
   const [sort, setSort] = useState("numero");
@@ -44,8 +49,9 @@ export default function TcgCardList({ items, info, prices, onToggleOwned, onSetQ
     () =>
       items.map((it, i) => {
         const key = tcgCardKey(it);
-        const card = (info && info[key]) || {};
-        return { it, i, key, card, price: prices?.[key] ?? card.price ?? null, qty: tcgQuantity(it) };
+        const card = (typeof info === "function" ? info(it) : info && info[key]) || {};
+        const p = typeof prices === "function" ? prices(it) : prices?.[key];
+        return { it, i, key, card, price: p ?? card.price ?? null, qty: tcgQuantity(it) };
       }),
     [items, info, prices]
   );
@@ -140,9 +146,10 @@ export default function TcgCardList({ items, info, prices, onToggleOwned, onSetQ
                 {card.rarity && <span className="tcg-card__rarity">{card.rarity}</span>}
               </button>
               <div className="tcg-card__body">
-                <div className="tcg-card__title" title={it.title}>
+                <button type="button" className="tcg-card__title" title={`${it.title} · ver detalle`} onClick={() => onOpen(it.id)}>
                   {it.title.replace(/\s*\([^)]*\)\s*$/, "") || it.title}
-                </div>
+                </button>
+                {showSet && parseSetName(it.notes) && <div className="tcg-card__set">{parseSetName(it.notes)}</div>}
                 <div className="tcg-card__meta">
                   {card.color &&
                     card.color.split(" ").map((c) => (
@@ -164,8 +171,14 @@ export default function TcgCardList({ items, info, prices, onToggleOwned, onSetQ
                   </span>
                 </div>
               </div>
-              <button type="button" className="tcg-card__edit" title="Editar detalles" onClick={() => onEdit(it.id)}>
-                <Pencil size={11} />
+              <button
+                type="button"
+                className={"tcg-card__wish" + (it.wish ? " active" : "")}
+                title={it.wish ? "Sacar de la lista de deseos" : "Agregar a la lista de deseos"}
+                aria-pressed={!!it.wish}
+                onClick={() => onToggleWish(it)}
+              >
+                <Star size={12} fill={it.wish ? "currentColor" : "none"} />
               </button>
             </div>
           ))}

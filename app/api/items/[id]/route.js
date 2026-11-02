@@ -21,12 +21,15 @@ export async function PATCH(req, { params }) {
     const notes = body.notes || "";
     const coverUrl = body.coverUrl || null;
     const description = (body.description || "").slice(0, 280);
+    // La estrella de la lista de deseos solo cambia si viene en el pedido —
+    // el formulario de edición no la manda y no tiene que borrarla.
+    const wish = typeof body.wish === "boolean" ? body.wish : null;
 
     const { rows } = await sql`
       UPDATE items SET
         title=${title}, category=${category}, status=${status}, unit=${unit},
         current=${current}, total=${total}, rating=${rating}, notes=${notes}, cover_url=${coverUrl},
-        description=${description}
+        description=${description}, wish=COALESCE(${wish}::boolean, wish)
       WHERE id=${id} AND user_id=${userId}
       RETURNING *`;
     if (!rows[0]) return Response.json({ error: "not_found" }, { status: 404 });
