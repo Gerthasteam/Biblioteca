@@ -16,7 +16,7 @@ import TcgFolderModal from "./components/TcgFolderModal";
 import RecommendationModal from "./components/RecommendationModal";
 import { TcgLogo, TcgGameTile, TcgAddGameTile, TcgGamePicker, TcgFolderTile } from "./components/TcgGames";
 import { CATEGORY_LABEL } from "../lib/ui";
-import { groupTcgFolders, parseTcgRef, formatSetCode, withTcgRef } from "../lib/tcgRef";
+import { groupTcgFolders, parseTcgRef, formatSetCode, withTcgRef, ownedCardIds } from "../lib/tcgRef";
 import { TCG_GAMES, tcgGame } from "../lib/tcgGames";
 import { tcgValue, formatUsd, tcgCardKey, tcgQuantity, setMoney, MONEY_MODES } from "../lib/tcgCard";
 import TcgCardList from "./components/TcgCardList";
@@ -383,6 +383,54 @@ export default function App() {
       flashToast(`Sumaste ${card.title} a ${card.setName}.`);
     } catch (err) {
       flashToast("No se pudo sumar la carta: " + err.message);
+    }
+  }
+
+  // ---- Exportar todas las expansiones de One Piece de una ----
+  // Suma apagadas todas las cartas de todos los sets que todavía no tenés
+  // (sin duplicar), en tandas de 500. Cada set queda en su carpeta.
+  const [exportAllProgress, setExportAllProgress] = useState(null); // { done, total } | null
+  async function exportAllSets() {
+    if (exportAllProgress) return;
+    try {
+      const res = await fetch("/api/tcg/allcards?game=onepiece");
+      const json = await res.json();
+      const owned = ownedCardIds(items, "onepiece");
+      const missing = (json.cards || []).filter((c) => !owned.has(c.id));
+      if (!missing.length) {
+        flashToast(json.error ? "No se pudo traer el listado de cartas." : "Ya tenés todas las expansiones exportadas.");
+        return;
+      }
+      const sets = new Set(missing.map((c) => c.setId)).size;
+      if (!window.confirm(`Se van a agregar ${missing.length} cartas de ${sets} expansiones (apagadas, como si no las tuvieras). ¿Seguir?`)) return;
+      setExportAllProgress({ done: 0, total: missing.length });
+      for (let i = 0; i < missing.length; i += 500) {
+        const payload = missing.slice(i, i + 500).map((c) => ({
+          title: c.title,
+          category: "tcg",
+          status: "pendiente",
+          unit: "Carta",
+          current: 0,
+          total: null,
+          rating: 0,
+          notes: withTcgRef("", "onepiece", c.setId, c.setName, c.id),
+          coverUrl: c.cover || null
+        }));
+        const r = await fetch("/api/items/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: payload })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.message || "error");
+        setItems((prev) => [...prev, ...(j.items || [])]);
+        setExportAllProgress({ done: Math.min(missing.length, i + 500), total: missing.length });
+      }
+      flashToast(`Listo: se agregaron ${missing.length} cartas de ${sets} expansiones.`);
+    } catch (err) {
+      flashToast("Se cortó la exportación: " + err.message + ". Volvé a tocar el botón para seguir con lo que falta.");
+    } finally {
+      setExportAllProgress(null);
     }
   }
 
@@ -1031,6 +1079,14 @@ export default function App() {
                     <button type="button" className="btn subtle" onClick={() => setFolderModal({ game: activeTcgGame })}>
                       <Plus size={14} />
                       Agregar expansión
+                    </button>
+                  )}
+                  {activeTcgGame === "onepiece" && (
+                    <button type="button" className="btn subtle" onClick={exportAllSets} disabled={!!exportAllProgress}>
+                      <Plus size={14} />
+                      {exportAllProgress
+                        ? `Exportando ${exportAllProgress.done}/${exportAllProgress.total}…`
+                        : "Exportar todas"}
                     </button>
                   )}
                   <button type="button" className="btn subtle" onClick={() => createCustomFolder(activeTcgGame)}>
