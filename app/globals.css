@@ -885,3 +885,83 @@ button, a{ -webkit-tap-highlight-color:transparent; }
   .tcg-value__hero{ font-size:1.5rem; }
   .tcg-value__wish{ width:100%; }
 }
+.tcg-value__pl{ font-size:.76rem; color:var(--text-muted); margin-top:6px; font-variant-numeric:tabular-nums; }
+.tcg-value__pl b{ color:var(--text); }
+.tcg-value__money{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.tcg-value__money select{
+  font-size:.74rem; padding:5px 9px; border-radius:99px; border:1px solid var(--border); background:var(--surface); color:var(--text);
+}
+.tcg-value__link{ background:none; border:none; padding:0; color:var(--secondary); font-size:.74rem; font-weight:600; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+
+/* carga rápida de cartas (y buscador para mazos) */
+.tcg-quick__results{ display:flex; flex-direction:column; gap:6px; max-height:56vh; overflow-y:auto; min-height:80px; }
+.tcg-quick__row{ display:flex; align-items:center; gap:12px; padding:6px; border-radius:10px; background:var(--bg-soft); border:1px solid var(--border-soft); }
+.tcg-quick__thumb{ width:44px; aspect-ratio:2.5/3.5; border-radius:5px; background-size:cover; background-position:center; background-color:var(--surface); flex-shrink:0; }
+.tcg-quick__info{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.tcg-quick__info b{ font-size:.84rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tcg-quick__info small{ font-size:.7rem; color:var(--text-muted); display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.tcg-quick__variant{ background:linear-gradient(90deg,#F2C94C,#E8590C); color:#1A120A; font-weight:700; padding:1px 6px; border-radius:5px; font-size:.62rem; }
+.tcg-quick__price{ color:var(--accent); font-weight:700; }
+.tcg-quick__have{ color:var(--status-done-fg); font-weight:600; }
+.tcg-quick__row .btn{ min-height:0; padding:8px 12px; }
+@media (max-width:560px){
+  .tcg-quick__row .btn{ width:auto !important; }
+}
+
+/* lo que pagaste por una carta (detalle) */
+.tcg-detail__cost{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:.78rem; }
+.tcg-detail__cost label{ color:var(--text-muted); }
+.tcg-detail__cost input{
+  width:110px; font-size:.84rem; padding:6px 9px; border-radius:var(--radius-sm); border:1px solid var(--border);
+  background:var(--bg-soft); color:var(--text);
+}
+.tcg-detail__cost span{ font-weight:700; font-variant-numeric:tabular-nums; }
+
+/* compras y ganancia */
+.tcg-pl{ display:flex; flex-direction:column; gap:6px; }
+.tcg-pl__row{
+  display:grid; grid-template-columns:1.2fr 1.4fr 1fr auto; gap:10px; align-items:baseline;
+  font-size:.8rem; padding:8px 10px; border-radius:8px; background:var(--bg-soft); border:1px solid var(--border-soft);
+  font-variant-numeric:tabular-nums;
+}
+.tcg-pl__row small{ color:var(--text-faint); }
+.tcg-pl__row > span:last-child{ font-weight:700; text-align:right; }
+.tcg-pl__row--total{ background:var(--surface-2); }
+.tcg-pl__form{ display:flex; gap:8px; flex-wrap:wrap; }
+.tcg-pl__form input, .tcg-pl__form select{
+  font-size:.82rem; padding:8px 10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-soft); color:var(--text);
+}
+.tcg-pl__form input[type="text"]:first-of-type{ flex:2 1 180px; }
+.tcg-pl__form input[inputmode="decimal"]{ flex:1 1 100px; }
+.tcg-pl__list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; max-height:32vh; overflow-y:auto; }
+.tcg-pl__list li{ display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:8px; }
+.tcg-pl__list li:hover{ background:var(--surface-hover); }
+.tcg-pl__list li > span:first-child{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.tcg-pl__list b{ font-size:.82rem; font-weight:600; }
+.tcg-pl__list small{ font-size:.68rem; color:var(--text-muted); }
+.tcg-pl__amount{ font-size:.82rem; font-weight:700; font-variant-numeric:tabular-nums; }
+@media (max-width:560px){
+  .tcg-pl__row{ grid-template-columns:1fr 1fr; }
+  .tcg-pl__form .btn{ width:100%; }
+}
+
+/* mazos */
+.tcg-game-tabs{ display:inline-flex; padding:3px; border-radius:99px; background:var(--surface); border:1px solid var(--border); margin:0 0 16px; }
+.tcg-game-tabs button{ border:none; background:none; color:var(--text-muted); font-size:.8rem; font-weight:600; padding:7px 16px; border-radius:99px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.tcg-game-tabs button.active{ background:var(--primary); color:#fff; }
+.tcg-deck-tile{
+  display:flex; gap:12px; align-items:center; padding:10px; border-radius:12px; cursor:pointer; text-align:left; color:inherit;
+  background:var(--surface); border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); transition:transform .12s ease, border-color .12s ease;
+}
+.tcg-deck-tile:hover{ transform:translateY(-2px); border-color:var(--secondary); }
+.tcg-deck-tile__img{ width:62px; aspect-ratio:2.5/3.5; border-radius:6px; background-size:cover; background-position:center; background-color:var(--bg-soft); flex-shrink:0; }
+.tcg-deck-tile__body{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+.tcg-deck-tile__body b{ font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tcg-deck-tile__body small{ font-size:.72rem; color:var(--text-muted); }
+.tcg-deck__title{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.tcg-deck__title img{ width:38px; aspect-ratio:2.5/3.5; object-fit:cover; border-radius:5px; }
+.tcg-deck__group{ margin-bottom:18px; }
+.tcg-deck__group h3{ font-family:'Zen Kaku Gothic New'; font-size:.86rem; font-weight:700; color:var(--text-muted); margin-bottom:8px; }
+.tcg-deck__row{ display:flex; align-items:center; gap:12px; padding:6px; border-radius:10px; background:var(--surface); border:1px solid var(--border-soft); margin-bottom:6px; }
+.tcg-deck__row--lack{ border-color:rgba(255,135,135,.35); }
+.tcg-deck__lack{ color:#FF8787; font-weight:700; }

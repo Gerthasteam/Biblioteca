@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Star, TrendingUp, TrendingDown } from "lucide-react";
-import { formatUsd } from "../../lib/tcgCard";
+import { formatUsd, MONEY_MODES } from "../../lib/tcgCard";
 
 const RANGES = [
   { key: 30, label: "30 días" },
@@ -51,7 +51,18 @@ function buildSeries(history, live, today) {
 // Panel de arriba de la sección TCG: cuánto vale hoy tu colección, cuánto
 // cambió, un gráfico con la evolución (desde que se empezó a guardar) y el
 // acceso a la lista de deseos.
-export default function TcgValuePanel({ history, live, wishCount, wishTotal, onOpenWishlist }) {
+export default function TcgValuePanel({
+  history,
+  live,
+  wishCount,
+  wishTotal,
+  onOpenWishlist,
+  moneyMode,
+  onMoneyMode,
+  rates,
+  invested,
+  onOpenPurchases
+}) {
   const [range, setRange] = useState(30);
   const [hover, setHover] = useState(null); // índice del punto bajo el mouse/dedo
   const svgRef = useRef(null);
@@ -98,13 +109,36 @@ export default function TcgValuePanel({ history, live, wishCount, wishTotal, onO
             <div className={"tcg-value__delta " + (up ? "tcg-value__delta--up" : "tcg-value__delta--down")}>
               {up ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
               {up ? "+" : "−"}
-              {formatUsd(Math.abs(delta)).replace("US$ ", "US$ ")}
-              {deltaPct != null && ` (${up ? "+" : "−"}${Math.abs(deltaPct).toFixed(1)} %)`}
+              {formatUsd(Math.abs(delta))}
+              {deltaPct != null && ` (${up ? "+" : "−"}${Math.abs(deltaPct).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %)`}
               <span> en {Math.min(7, all.length - 1)} día{Math.min(7, all.length - 1) === 1 ? "" : "s"}</span>
             </div>
           ) : (
             <div className="tcg-value__hint">El gráfico se va armando día a día desde hoy, cada vez que entrás.</div>
           )}
+          {invested > 0 && (
+            <div className="tcg-value__pl">
+              Invertiste <b>{formatUsd(invested)}</b> ·{" "}
+              <span className={now - invested >= 0 ? "tcg-value__delta--up" : "tcg-value__delta--down"}>
+                {now - invested >= 0 ? "ganancia" : "pérdida"} {now - invested >= 0 ? "+" : "−"}
+                {formatUsd(Math.abs(now - invested))} ({now - invested >= 0 ? "+" : "−"}
+                {Math.abs(((now - invested) / invested) * 100).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %)
+              </span>
+            </div>
+          )}
+          <div className="tcg-value__money">
+            <select value={moneyMode} onChange={(e) => onMoneyMode(e.target.value)} aria-label="Moneda">
+              {MONEY_MODES.map((m) => (
+                <option key={m.key} value={m.key} disabled={m.key !== "usd" && !rates?.[m.key]}>
+                  {m.label}
+                  {m.key !== "usd" && rates?.[m.key] ? ` ($${Math.round(rates[m.key]).toLocaleString("es-AR")})` : ""}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="tcg-value__link" onClick={onOpenPurchases}>
+              Compras y ganancia
+            </button>
+          </div>
         </div>
         <button type="button" className="tcg-value__wish" onClick={onOpenWishlist}>
           <Star size={16} fill="currentColor" />

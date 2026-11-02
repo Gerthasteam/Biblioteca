@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut } from "lucide-react";
+import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut, Zap, Layers3 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
@@ -16,13 +16,16 @@ import TcgFolderModal from "./components/TcgFolderModal";
 import RecommendationModal from "./components/RecommendationModal";
 import { TcgLogo, TcgGameTile, TcgAddGameTile, TcgGamePicker, TcgFolderTile } from "./components/TcgGames";
 import { CATEGORY_LABEL } from "../lib/ui";
-import { groupTcgFolders, parseTcgRef, formatSetCode } from "../lib/tcgRef";
+import { groupTcgFolders, parseTcgRef, formatSetCode, withTcgRef } from "../lib/tcgRef";
 import { TCG_GAMES, tcgGame } from "../lib/tcgGames";
-import { tcgValue, formatUsd, tcgCardKey } from "../lib/tcgCard";
+import { tcgValue, formatUsd, tcgCardKey, tcgQuantity, setMoney, MONEY_MODES } from "../lib/tcgCard";
 import TcgCardList from "./components/TcgCardList";
 import TcgCardModal from "./components/TcgCardModal";
 import TcgSetStats from "./components/TcgSetStats";
 import TcgValuePanel from "./components/TcgValuePanel";
+import TcgQuickAdd from "./components/TcgQuickAdd";
+import TcgPurchasesModal from "./components/TcgPurchasesModal";
+import TcgDecks from "./components/TcgDecks";
 
 const EXAMPLE_MANGA = [
   { title: "Vinland Saga", category: "manga", current: 112, total: 220, rating: 5, status: "progreso" },
@@ -66,6 +69,7 @@ export default function App() {
   const [gamePickerOpen, setGamePickerOpen] = useState(false);
   const [tcgCardId, setTcgCardId] = useState(null); // carta TCG abierta en la ventana de detalle
   const [wishlistOpen, setWishlistOpen] = useState(false); // vista "Lista de deseos" dentro de TCG
+  const [tcgGameTab, setTcgGameTab] = useState("carpetas"); // dentro de One Piece: "carpetas" | "mazos"
   const [recommendOpen, setRecommendOpen] = useState(false);
 
   function flashToast(msg) {
@@ -327,6 +331,91 @@ export default function App() {
     }).catch(() => flashToast("No se pudo actualizar la lista de deseos."));
   }
 
+  // ---- Carga rápida (One Piece) ----
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // Copias que tenés por clave de carta y por número (el número junta la
+  // normal y sus paralelas — es lo que cuenta para un mazo).
+  const onePieceOwned = useMemo(() => {
+    const byKey = new Map();
+    const byNumber = new Map();
+    const itemByKey = new Map();
+    for (const it of items) {
+      if (it.category !== "tcg") continue;
+      const ref = parseTcgRef(it.notes);
+      if (!ref || ref.game !== "onepiece") continue;
+      const key = tcgCardKey(it);
+      itemByKey.set(key, it);
+      const q = tcgQuantity(it);
+      byKey.set(key, (byKey.get(key) || 0) + q);
+      const num = String(key).split("_")[0].toUpperCase();
+      byNumber.set(num, (byNumber.get(num) || 0) + q);
+    }
+    return { byKey, byNumber, itemByKey };
+  }, [items]);
+
+  async function quickAddCard(card) {
+    const existing = onePieceOwned.itemByKey.get(card.id);
+    if (existing) {
+      setTcgQuantity(existing, tcgQuantity(existing) + 1);
+      flashToast(`${card.title}: ahora tenés ${tcgQuantity(existing) + 1}.`);
+      return;
+    }
+    try {
+      const res = await fetch("/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: card.title,
+          category: "tcg",
+          status: "completo",
+          unit: "Carta",
+          current: 1,
+          total: null,
+          rating: 0,
+          notes: withTcgRef("", "onepiece", card.setId, card.setName, card.id),
+          coverUrl: card.cover || null
+        })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.item) throw new Error(json.message || "error");
+      setItems((prev) => [...prev, json.item]);
+      setTcgGamesAdded((prev) => (prev.includes("onepiece") ? prev : [...prev, "onepiece"]));
+      flashToast(`Sumaste ${card.title} a ${card.setName}.`);
+    } catch (err) {
+      flashToast("No se pudo sumar la carta: " + err.message);
+    }
+  }
+
+  // ---- Moneda: dólares o pesos (con el dólar elegido) ----
+  const [moneyMode, setMoneyMode] = useState("usd");
+  const [fxRates, setFxRates] = useState({}); // { blue: 1565, tarjeta: 2034.5, … } (venta)
+  useEffect(() => {
+    try {
+      const m = localStorage.getItem("estante.money");
+      if (MONEY_MODES.some((x) => x.key === m)) setMoneyMode(m);
+    } catch {}
+  }, []);
+  const fxLoaded = useRef(false);
+  useEffect(() => {
+    if (view !== "tcg" || fxLoaded.current) return;
+    fxLoaded.current = true;
+    fetch("/api/fx")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.rates && Object.keys(json.rates).length) setFxRates(json.rates);
+        else fxLoaded.current = false;
+      })
+      .catch(() => {
+        fxLoaded.current = false;
+      });
+  }, [view]);
+  function changeMoneyMode(m) {
+    setMoneyMode(m);
+    try {
+      localStorage.setItem("estante.money", m);
+    } catch {}
+  }
+
   // Carpeta o lista: se recuerda en este navegador.
   const [tcgFolderView, setTcgFolderView] = useState("carpeta");
   useEffect(() => {
@@ -388,6 +477,71 @@ export default function App() {
     }, 2500);
     return () => clearTimeout(t);
   }, [liveTcgValues]);
+
+  // ---- Compras y ganancia ----
+  const [purchases, setPurchases] = useState([]);
+  const [purchasesOpen, setPurchasesOpen] = useState(false);
+  const purchasesLoaded = useRef(false);
+  useEffect(() => {
+    if (view !== "tcg" || purchasesLoaded.current) return;
+    purchasesLoaded.current = true;
+    fetch("/api/tcg/purchases")
+      .then((r) => r.json())
+      .then((json) => setPurchases(json.purchases || []))
+      .catch(() => {
+        purchasesLoaded.current = false;
+      });
+  }, [view]);
+  // Lo que pagaste por cartas sueltas (costo por copia × copias), por juego.
+  const cardInvested = useMemo(() => {
+    const out = {};
+    for (const game of shownTcgGames) {
+      const cards = tcgFolders.filter((f) => f.group === game).flatMap((f) => f.items);
+      const v = tcgValue(cards, tcgPrices[game]).invested;
+      if (v > 0) out[game] = v;
+    }
+    return out;
+  }, [shownTcgGames, tcgFolders, tcgPrices]);
+  const totalInvested =
+    purchases.reduce((n, p) => n + p.amount, 0) + Object.values(cardInvested).reduce((n, v) => n + v, 0);
+
+  async function addPurchase(p) {
+    try {
+      const res = await fetch("/api/tcg/purchases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(p)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.purchase) throw new Error(json.message || "error");
+      setPurchases((prev) => [json.purchase, ...prev].sort((a, b) => b.day.localeCompare(a.day)));
+      return true;
+    } catch (err) {
+      flashToast("No se pudo anotar la compra: " + err.message);
+      return false;
+    }
+  }
+  function deletePurchase(p) {
+    if (!window.confirm(`¿Borrar "${p.description}"?`)) return;
+    setPurchases((prev) => prev.filter((x) => x.id !== p.id));
+    fetch("/api/tcg/purchases", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: p.id })
+    }).catch(() => flashToast("No se pudo borrar la compra en el servidor."));
+  }
+  // Lo que pagaste por copia de una carta (dólares, o null para borrarlo).
+  function setTcgCost(item, cost) {
+    setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, cost } : it)));
+    const payload = { ...item, cost };
+    delete payload.id;
+    delete payload.createdAt;
+    fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(() => flashToast("No se pudo guardar lo que pagaste."));
+  }
 
   // ---- Lista de deseos ----
   const wishItems = useMemo(() => items.filter((it) => it.category === "tcg" && it.wish), [items]);
@@ -778,6 +932,10 @@ export default function App() {
     else setItemModal({ editing: null, defaultCategory: "manga" });
   }
 
+  // Todos los precios de este render se muestran en la moneda elegida (si
+  // todavía no llegó la cotización, en dólares).
+  setMoney(moneyMode, fxRates[moneyMode]);
+
   const meta = VIEW_META[view];
 
   // Todavía no sabemos si hay sesión (primer render) — no mostramos ni el
@@ -857,12 +1015,18 @@ export default function App() {
                 </div>
               </section>
 
-              {view === "tcg" && activeTcgGame && !activeTcgFolder && !search && (
+              {view === "tcg" && activeTcgGame && !activeTcgFolder && !search && !(activeTcgGame === "onepiece" && tcgGameTab === "mazos") && (
                 <div className="tcg-game-row">
                   <button type="button" className="btn subtle" onClick={() => setActiveTcgGame(null)}>
                     <ChevronLeft size={14} />
                     Mis TCG
                   </button>
+                  {activeTcgGame === "onepiece" && (
+                    <button type="button" className="btn" onClick={() => setQuickAddOpen(true)}>
+                      <Zap size={14} />
+                      Carga rápida
+                    </button>
+                  )}
                   {tcgGame(activeTcgGame).api && (
                     <button type="button" className="btn subtle" onClick={() => setFolderModal({ game: activeTcgGame })}>
                       <Plus size={14} />
@@ -962,6 +1126,12 @@ export default function App() {
                             >
                               <Plus size={14} />
                               Agregar carta
+                            </button>
+                          )}
+                          {activeTcgFolder.game === "onepiece" && (
+                            <button type="button" className="btn subtle" onClick={() => setQuickAddOpen(true)}>
+                              <Zap size={14} />
+                              Carga rápida
                             </button>
                           )}
                           <button
@@ -1123,6 +1293,11 @@ export default function App() {
                           wishCount={wishItems.length}
                           wishTotal={wishTotal}
                           onOpenWishlist={() => setWishlistOpen(true)}
+                          moneyMode={moneyMode}
+                          onMoneyMode={changeMoneyMode}
+                          rates={fxRates}
+                          invested={totalInvested}
+                          onOpenPurchases={() => setPurchasesOpen(true)}
                         />
                       )}
                       {shownTcgGames.length === 0 && (
@@ -1143,7 +1318,33 @@ export default function App() {
                       <div className="tcg-game-header">
                         <TcgLogo gameKey={activeTcgGame} small />
                       </div>
-                      {gameFolders.length === 0 ? (
+                      {activeTcgGame === "onepiece" && (
+                        <div className="tcg-game-tabs" role="tablist">
+                          {[
+                            ["carpetas", "Carpetas"],
+                            ["mazos", "Mazos"]
+                          ].map(([k, label]) => (
+                            <button
+                              key={k}
+                              type="button"
+                              role="tab"
+                              aria-selected={tcgGameTab === k}
+                              className={tcgGameTab === k ? "active" : ""}
+                              onClick={() => setTcgGameTab(k)}
+                            >
+                              {k === "mazos" && <Layers3 size={14} />}
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {activeTcgGame === "onepiece" && tcgGameTab === "mazos" ? (
+                        <TcgDecks
+                          ownedByNumber={onePieceOwned.byNumber}
+                          onToast={flashToast}
+                          onBack={() => setActiveTcgGame(null)}
+                        />
+                      ) : gameFolders.length === 0 ? (
                         <div className="empty-note empty-note--mascot">
                           <img src="/mascot.png" alt="" />
                           <p>
@@ -1243,6 +1444,26 @@ export default function App() {
         />
       )}
 
+      {purchasesOpen && (
+        <TcgPurchasesModal
+          purchases={purchases}
+          games={shownTcgGames.length ? shownTcgGames : ["onepiece"]}
+          values={liveTcgValues}
+          cardInvested={cardInvested}
+          onAdd={addPurchase}
+          onDelete={deletePurchase}
+          onClose={() => setPurchasesOpen(false)}
+        />
+      )}
+
+      {quickAddOpen && (
+        <TcgQuickAdd
+          ownedQty={(key) => onePieceOwned.byKey.get(key) || 0}
+          onAdd={quickAddCard}
+          onClose={() => setQuickAddOpen(false)}
+        />
+      )}
+
       {tcgCardItem && (
         <TcgCardModal
           item={tcgCardItem}
@@ -1251,6 +1472,7 @@ export default function App() {
           onClose={() => setTcgCardId(null)}
           onSetQuantity={setTcgQuantity}
           onToggleWish={toggleWish}
+          onSetCost={setTcgCost}
           onEdit={() => {
             setItemModal({ editing: tcgCardItem });
             setTcgCardId(null);

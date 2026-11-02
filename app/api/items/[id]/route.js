@@ -24,12 +24,17 @@ export async function PATCH(req, { params }) {
     // La estrella de la lista de deseos solo cambia si viene en el pedido —
     // el formulario de edición no la manda y no tiene que borrarla.
     const wish = typeof body.wish === "boolean" ? body.wish : null;
+    // Lo mismo con lo que pagaste por la carta: solo cambia si viene
+    // "cost" en el pedido (un número, o null para borrarlo).
+    const setCost = Object.prototype.hasOwnProperty.call(body, "cost");
+    const cost = setCost && Number.isFinite(Number(body.cost)) && body.cost !== null && body.cost !== "" ? Number(body.cost) : null;
 
     const { rows } = await sql`
       UPDATE items SET
         title=${title}, category=${category}, status=${status}, unit=${unit},
         current=${current}, total=${total}, rating=${rating}, notes=${notes}, cover_url=${coverUrl},
-        description=${description}, wish=COALESCE(${wish}::boolean, wish)
+        description=${description}, wish=COALESCE(${wish}::boolean, wish),
+        cost=CASE WHEN ${setCost} THEN ${cost}::numeric ELSE cost END
       WHERE id=${id} AND user_id=${userId}
       RETURNING *`;
     if (!rows[0]) return Response.json({ error: "not_found" }, { status: 404 });

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Minus, Plus, Star, Pencil, Trash2 } from "lucide-react";
-import { tcgQuantity, formatUsd } from "../../lib/tcgCard";
+import { tcgQuantity, formatUsd, toUsd, fromUsd, moneyInPesos } from "../../lib/tcgCard";
 import { parseTcgRef, parseSetName, formatSetCode } from "../../lib/tcgRef";
 
 // Etiquetas de los datos de la carta, en el orden en que se muestran.
@@ -20,7 +21,21 @@ const DETAIL_LABELS = [
 // color, si es paralela, el texto/efecto, sus stats, el precio de mercado,
 // cuántas copias tenés y la estrella de la lista de deseos. "Editar" abre
 // el formulario de siempre (título, imagen, notas).
-export default function TcgCardModal({ item, card, price, onClose, onSetQuantity, onToggleWish, onEdit, onDelete }) {
+export default function TcgCardModal({ item, card, price, onClose, onSetQuantity, onToggleWish, onSetCost, onEdit, onDelete }) {
+  // Lo que pagaste por copia, en la moneda que se está mostrando (se guarda
+  // en dólares).
+  const shownCost = item.cost != null ? fromUsd(item.cost) : null;
+  const [costInput, setCostInput] = useState(shownCost != null ? String(Math.round(shownCost * 100) / 100) : "");
+  function saveCost() {
+    const raw = costInput.trim().replace(/\./g, moneyInPesos() ? "" : ".").replace(",", ".");
+    if (!raw) {
+      if (item.cost != null) onSetCost(item, null);
+      return;
+    }
+    const usd = toUsd(raw);
+    if (usd == null || usd < 0) return;
+    if (item.cost == null || Math.abs(usd - item.cost) > 0.00005) onSetCost(item, Math.round(usd * 10000) / 10000);
+  }
   const c = card || {};
   const d = c.details || {};
   const qty = tcgQuantity(item);
@@ -76,6 +91,26 @@ export default function TcgCardModal({ item, card, price, onClose, onSetQuantity
                 <Star size={14} fill={item.wish ? "currentColor" : "none"} />
                 {item.wish ? "En tu lista de deseos" : "La busco"}
               </button>
+            </div>
+
+            <div className="tcg-detail__cost">
+              <label htmlFor="tcgCost">Pagaste por copia {moneyInPesos() ? "($)" : "(US$)"}</label>
+              <input
+                id="tcgCost"
+                type="text"
+                inputMode="decimal"
+                placeholder="—"
+                value={costInput}
+                onChange={(e) => setCostInput(e.target.value)}
+                onBlur={saveCost}
+                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              />
+              {item.cost != null && price != null && qty > 0 && (
+                <span className={(price - item.cost) * qty >= 0 ? "tcg-value__delta--up" : "tcg-value__delta--down"}>
+                  {(price - item.cost) * qty >= 0 ? "Ganás +" : "Perdés −"}
+                  {formatUsd(Math.abs((price - item.cost) * qty))}
+                </span>
+              )}
             </div>
 
             {stats.length > 0 && (
