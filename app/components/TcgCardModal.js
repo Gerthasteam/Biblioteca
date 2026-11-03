@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Minus, Plus, Star, Pencil, Trash2 } from "lucide-react";
 import { tcgQuantity, formatUsd, toUsd, fromUsd, moneyInPesos } from "../../lib/tcgCard";
-import { parseTcgRef, parseSetName, formatSetCode } from "../../lib/tcgRef";
+import { parseTcgRef, parseSetName, formatSetCode, tcgCardKey } from "../../lib/tcgRef";
 
 // Etiquetas de los datos de la carta, en el orden en que se muestran.
 const DETAIL_LABELS = [
@@ -71,6 +71,7 @@ export default function TcgCardModal({ item, card, price, onClose, onSetQuantity
               <b>{price != null ? formatUsd(price) : "Sin precio"}</b>
               <span>precio de mercado (TCGplayer)</span>
             </div>
+            {ref && ref.game !== "custom" && <PriceHistory game={ref.game} cardKey={tcgCardKey(item)} />}
 
             <div className="tcg-detail__row">
               <span className="tcg-card__qty tcg-detail__qty">
@@ -147,6 +148,72 @@ export default function TcgCardModal({ item, card, price, onClose, onSetQuantity
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Mini gráfico con la evolución del precio de la carta (lo que se fue
+// guardando cada día que alguien entró a la app), con la variación desde el
+// primer dato.
+function PriceHistory({ game, cardKey }) {
+  const [rows, setRows] = useState(null);
+  const [hover, setHover] = useState(null);
+  useEffect(() => {
+    let cancel = false;
+    fetch(`/api/tcg/price-history?game=${game}&key=${encodeURIComponent(cardKey)}`)
+      .then((r) => r.json())
+      .then((j) => !cancel && setRows(j.history || []))
+      .catch(() => !cancel && setRows([]));
+    return () => {
+      cancel = true;
+    };
+  }, [game, cardKey]);
+  if (!rows) return null;
+  if (rows.length < 2) {
+    return <p className="section-header__sub" style={{ margin: 0 }}>El historial de precio se arma día a día desde que la tenés cargada.</p>;
+  }
+  const W = 300;
+  const H = 56;
+  const vals = rows.map((r) => r.price);
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
+  const x = (i) => (i * W) / (rows.length - 1);
+  const y = (v) => H - 4 - ((v - min) / (max - min || 1)) * (H - 8);
+  const line = rows.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r.price).toFixed(1)}`).join(" ");
+  const first = rows[0].price;
+  const last = rows[rows.length - 1].price;
+  const change = first ? ((last - first) / first) * 100 : 0;
+  const hp = hover != null ? rows[hover] : null;
+  return (
+    <div className="price-hist">
+      <div className="price-hist__head">
+        <span>
+          Desde el {new Date(rows[0].day + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }).replace(".", "")}
+        </span>
+        <span className={change >= 0 ? "tcg-value__delta--up" : "tcg-value__delta--down"}>
+          {change >= 0 ? "+" : "−"}
+          {Math.abs(change).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %
+        </span>
+        {hp && (
+          <span className="price-hist__tip">
+            {formatUsd(hp.price)} · {new Date(hp.day + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }).replace(".", "")}
+          </span>
+        )}
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`Precio: de ${formatUsd(first)} a ${formatUsd(last)}`}
+        onPointerMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setHover(Math.max(0, Math.min(rows.length - 1, Math.round(((e.clientX - r.left) / r.width) * (rows.length - 1)))));
+        }}
+        onPointerLeave={() => setHover(null)}
+      >
+        <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+        {hp && <line x1={x(hover)} x2={x(hover)} y1="0" y2={H} stroke="var(--text-faint)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />}
+      </svg>
     </div>
   );
 }

@@ -61,7 +61,8 @@ export default function TcgValuePanel({
   onMoneyMode,
   rates,
   invested,
-  onOpenPurchases
+  onOpenPurchases,
+  onOpenTrades
 }) {
   const [range, setRange] = useState(30);
   const [hover, setHover] = useState(null); // índice del punto bajo el mouse/dedo
@@ -137,6 +138,9 @@ export default function TcgValuePanel({
             </select>
             <button type="button" className="tcg-value__link" onClick={onOpenPurchases}>
               Compras y ganancia
+            </button>
+            <button type="button" className="tcg-value__link" onClick={onOpenTrades}>
+              Intercambios
             </button>
           </div>
         </div>

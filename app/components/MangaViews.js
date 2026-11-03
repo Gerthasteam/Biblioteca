@@ -89,6 +89,84 @@ export function MangaMissing({ items, onOpen, onSaveMeta, onToggleWish }) {
   );
 }
 
+// ---- Desafío de lectura anual ----
+// Meta de tomos para el año, cuántos llevás, si vas adelantado o atrasado
+// según el día del año, y la racha de semanas seguidas leyendo algo.
+export function readingYearStats(items, year) {
+  const days = [];
+  for (const it of items) for (const d of Object.values(it.meta?.read || {})) if (d) days.push(d);
+  const thisYear = days.filter((d) => d.startsWith(String(year))).length;
+  // racha de semanas (lunes a domingo) seguidas con al menos un tomo leído,
+  // contando hasta esta semana (o la anterior, si esta todavía no leíste nada)
+  const weekKey = (date) => {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dow = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - dow);
+    return d.toLocaleDateString("en-CA");
+  };
+  const weeks = new Set(days.map((d) => weekKey(new Date(d + "T12:00:00"))));
+  let streak = 0;
+  const cur = new Date();
+  if (!weeks.has(weekKey(cur))) cur.setDate(cur.getDate() - 7);
+  while (weeks.has(weekKey(cur))) {
+    streak++;
+    cur.setDate(cur.getDate() - 7);
+  }
+  return { thisYear, streak };
+}
+
+export function ReadingGoal({ items, goal, onSetGoal }) {
+  const year = new Date().getFullYear();
+  const { thisYear, streak } = readingYearStats(items, year);
+  const start = new Date(year, 0, 1);
+  const dayOfYear = Math.floor((Date.now() - start.getTime()) / 86400000) + 1;
+  const daysInYear = (new Date(year + 1, 0, 1) - start) / 86400000;
+  const expected = goal ? Math.round((goal * dayOfYear) / daysInYear) : 0;
+  const pct = goal ? Math.min(100, Math.round((thisYear / goal) * 100)) : 0;
+  const diff = thisYear - expected;
+
+  function edit() {
+    const v = window.prompt(`¿Cuántos tomos querés leer en ${year}?`, goal || "");
+    if (v === null) return;
+    const n = parseInt(v, 10);
+    onSetGoal(year, Number.isFinite(n) && n > 0 ? n : null);
+  }
+
+  return (
+    <section className="reading-goal">
+      <div className="reading-goal__head">
+        <div>
+          <span className="cat-label">Desafío de lectura {year}</span>
+          <div className="reading-goal__num">
+            <b>{thisYear}</b>
+            {goal ? <span> de {goal} tomos</span> : <span> tomos leídos este año</span>}
+          </div>
+        </div>
+        <button type="button" className="btn subtle" onClick={edit}>
+          {goal ? "Cambiar meta" : "Ponerme una meta"}
+        </button>
+      </div>
+      {goal ? (
+        <>
+          <div className="progress-bar" style={{ marginTop: 8 }}>
+            <div className="progress-bar__fill" style={{ width: pct + "%" }} />
+          </div>
+          <p className="section-header__sub" style={{ margin: "6px 0 0" }}>
+            {thisYear >= goal
+              ? "¡Cumpliste la meta del año! 🎉"
+              : diff >= 0
+              ? `Vas ${diff} tomo${diff === 1 ? "" : "s"} adelantado para llegar a fin de año.`
+              : `Vas ${-diff} tomo${diff === -1 ? "" : "s"} atrasado — a este ritmo deberías llevar ${expected}.`}
+            {streak > 0 && ` · Racha: ${streak} semana${streak === 1 ? "" : "s"} seguida${streak === 1 ? "" : "s"} leyendo.`}
+          </p>
+        </>
+      ) : (
+        streak > 0 && <p className="section-header__sub" style={{ margin: "6px 0 0" }}>Racha: {streak} semana{streak === 1 ? "" : "s"} seguida{streak === 1 ? "" : "s"} leyendo.</p>
+      )}
+    </section>
+  );
+}
+
 // ---- Pila de lectura: tomos que tenés y no leíste ----
 export function MangaPile({ items, onOpen, onSaveMeta }) {
   const rows = items.map((it) => ({ it, unread: unreadVolumes(it) })).filter((r) => r.unread.length);

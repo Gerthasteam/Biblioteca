@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Star, Pencil, Check, Sparkles } from "lucide-react";
+import { BookOpen, Star, Pencil, Check, Sparkles, Tv } from "lucide-react";
 import StarPicker from "./StarPicker";
 import {
   SERIES_STATUS,
@@ -36,7 +36,7 @@ function parseList(s) {
 //   publicados, próximo tomo, autores y géneros (se pueden traer de AniList).
 // - Reseña: puntaje por guion, dibujo y edición, y una reseña escrita.
 // Todo se guarda en item.meta (ver lib/manga.js) con onSaveMeta.
-export default function MangaModal({ item, onClose, onSaveMeta, onEdit, onDelete, onBump, onToggleWish }) {
+export default function MangaModal({ item, relatedAnime = [], onOpenAnime, onClose, onSaveMeta, onEdit, onDelete, onBump, onToggleWish }) {
   const [tab, setTab] = useState("tomos");
   const meta = item.meta || {};
   const [zonatmoUrl, setZonatmoUrl] = useState(null);
@@ -146,6 +146,22 @@ export default function MangaModal({ item, onClose, onSaveMeta, onEdit, onDelete
             </div>
           </div>
         </div>
+
+        {relatedAnime.length > 0 && (
+          <div className="link-card">
+            <Tv size={15} />
+            <span>
+              También tenés el anime:{" "}
+              {relatedAnime.map((a, i) => (
+                <button key={a.id} type="button" className="tcg-value__link" onClick={() => onOpenAnime(a.id)}>
+                  {a.title} (vas por el ep {a.current || 0}
+                  {a.total ? ` de ${a.total}` : ""})
+                  {i < relatedAnime.length - 1 ? ", " : ""}
+                </button>
+              ))}
+            </span>
+          </div>
+        )}
 
         <div className="tcg-view-toggle manga-modal__tabs" role="tablist">
           {TABS.map(([k, label]) => (

@@ -1,5 +1,6 @@
 import { sql, ensureSchema, rowToAnime } from "../../../../lib/db";
 import { requireUser } from "../../../../lib/auth";
+import { cleanAnimeMeta } from "../../../../lib/anime";
 
 export async function PATCH(req, { params }) {
   const { userId, response } = requireUser(req);
@@ -18,11 +19,14 @@ export async function PATCH(req, { params }) {
     const rating = Number.isFinite(body.rating) ? body.rating : 0;
     const notes = body.notes || "";
     const coverUrl = body.coverUrl || null;
+    // los datos extra solo se reemplazan si vienen en el pedido
+    const meta = cleanAnimeMeta(body.meta);
 
     const { rows } = await sql`
       UPDATE animes SET
         title=${title}, status=${status}, current=${current}, total=${total},
-        rating=${rating}, notes=${notes}, cover_url=${coverUrl}
+        rating=${rating}, notes=${notes}, cover_url=${coverUrl},
+        meta=COALESCE(${meta ? JSON.stringify(meta) : null}::jsonb, meta)
       WHERE id=${id} AND user_id=${userId}
       RETURNING *`;
     if (!rows[0]) return Response.json({ error: "not_found" }, { status: 404 });

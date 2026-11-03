@@ -5,18 +5,52 @@ import { ChevronLeft, Plus, Minus, Trash2, Pencil, Upload, Copy } from "lucide-r
 import { formatUsd } from "../../lib/tcgCard";
 import TcgQuickAdd from "./TcgQuickAdd";
 
-// Reglas de un mazo de One Piece: 1 líder + 50 cartas, hasta 4 copias de
-// cada número.
-const DECK_SIZE = 50;
+// Reglas de mazo por juego. One Piece: 1 líder + 50 cartas, hasta 4 copias
+// de cada número. Pokémon: 60 cartas, hasta 4 copias de cada carta (las
+// energías básicas no tienen límite; acá se permite cualquier energía).
+// "key" es cómo se identifica una carta en el mazo: el número en One Piece
+// (la normal y la paralela valen igual) y el id de la carta en Pokémon.
+const RULES = {
+  onepiece: {
+    size: 50,
+    leader: true,
+    types: ["Leader", "Character", "Event", "Stage"],
+    labels: { Leader: "Líder", Character: "Personajes", Event: "Eventos", Stage: "Escenarios", "": "Otras" },
+    key: (card) => String(card.number).toUpperCase(),
+    example: "1xOP01-001\n4xOP01-016\n4xOP01-025",
+    help: '"4xOP01-016" o "4 OP01-016 Nami"'
+  },
+  pokemon: {
+    size: 60,
+    leader: false,
+    types: ["Pokémon", "Trainer", "Energy"],
+    labels: { "Pokémon": "Pokémon", Trainer: "Entrenadores", Energy: "Energías", "": "Otras" },
+    key: (card) => String(card.id).toUpperCase(),
+    example: "4 Pikachu ex SVI 63\n4 sv1-63\n10 Basic Lightning Energy SVE 4",
+    help: '"4 Pikachu ex SVI 63" (como exporta Pokémon TCG Live) o "4 sv1-63"'
+  }
+};
 const MAX_COPIES = 4;
-const TYPE_ORDER = ["Leader", "Character", "Event", "Stage"];
-const TYPE_LABEL = { Leader: "Líder", Character: "Personajes", Event: "Eventos", Stage: "Escenarios", "": "Otras" };
+function maxCopies(game, info) {
+  return game === "pokemon" && info?.type === "Energy" ? 60 : MAX_COPIES;
+}
 
-// Lista en texto, como las que se comparten en internet:
-// "4xOP01-016", "4 OP01-016", "1x ST01-001 Luffy"…
-export function parseDeckList(text) {
+// Lista en texto, como las que se comparten en internet.
+// One Piece: "4xOP01-016", "4 OP01-016", "1x ST01-001 Luffy"…
+// Pokémon: "4 Pikachu ex SVI 63" (código de set del juego online + número)
+// o "4 sv1-63" (id de carta). setCodes: { SVI: "sv1", … }.
+export function parseDeckList(text, game = "onepiece", setCodes = {}) {
   const out = [];
   for (const line of String(text || "").split(/\r?\n/)) {
+    if (game === "pokemon") {
+      const byId = /^\s*(\d{1,2})\s*x?\s+([a-z0-9]+-[a-z0-9]+)\s*$/i.exec(line);
+      const bySet = /^\s*(\d{1,2})\s+.+?\s+([A-Z0-9-]{2,6})\s+(\d+[a-z]?)\s*$/i.exec(line);
+      if (byId) out.push({ number: byId[2].toUpperCase(), qty: parseInt(byId[1], 10) });
+      else if (bySet && setCodes[bySet[2].toUpperCase()]) {
+        out.push({ number: `${setCodes[bySet[2].toUpperCase()]}-${bySet[3]}`.toUpperCase(), qty: parseInt(bySet[1], 10) });
+      }
+      continue;
+    }
     const m = /^\s*(\d{1,2})\s*x?\s*([A-Z]{1,4}\d{0,2}-\d{3})/i.exec(line);
     if (m) out.push({ number: m[2].toUpperCase(), qty: parseInt(m[1], 10) });
   }
@@ -27,10 +61,12 @@ function deckToText(deck) {
   return deck.cards.map((c) => `${c.qty}x${c.number}`).join("\n");
 }
 
-// Mazos de One Piece: lista de mazos y, adentro, el armado con lo que te
-// falta (comparando con las copias que tenés de cada número, sumando
+// Mazos (One Piece o Pokémon): lista de mazos y, adentro, el armado con lo
+// que te falta (comparando con las copias que tenés — en One Piece suma
 // normales y paralelas) y cuánto cuesta conseguirlo (versión más barata).
-export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
+export default function TcgDecks({ game = "onepiece", ownedByNumber, onToast, onBack }) {
+  const R = RULES[game] || RULES.onepiece;
+  const DECK_SIZE = R.size;
   const [decks, setDecks] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const [lookup, setLookup] = useState({}); // número -> carta (con minPrice)
@@ -42,7 +78,7 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
   useEffect(() => {
     fetch("/api/tcg/decks")
       .then((r) => r.json())
-      .then((json) => setDecks(json.decks || []))
+      .then((json) => setDecks((json.decks || []).filter((d) => d.game === game)))
       .catch(() => setDecks([]));
   }, []);
 
@@ -56,7 +92,7 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
     missing.forEach((n) => requested.current.add(n));
     for (let i = 0; i < missing.length; i += 80) {
       const chunk = missing.slice(i, i + 80);
-      fetch(`/api/tcg/search?game=onepiece&numbers=${encodeURIComponent(chunk.join(","))}`)
+      fetch(`/api/tcg/search?game=${game}&numbers=${encodeURIComponent(chunk.join(","))}`)
         .then((r) => r.json())
         .then((json) => json.byNumber && setLookup((prev) => ({ ...prev, ...json.byNumber })))
         .catch(() => chunk.forEach((n) => requested.current.delete(n)));
@@ -98,7 +134,7 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
   }
 
   function setQty(deck, number, qty, isLeader) {
-    const max = isLeader ? 1 : MAX_COPIES;
+    const max = isLeader ? 1 : maxCopies(game, lookup[number]);
     const n = Math.max(0, Math.min(max, qty));
     let cards = deck.cards.map((c) => (c.number === number ? { ...c, qty: n } : c)).filter((c) => c.qty > 0);
     if (n > 0 && !cards.some((c) => c.number === number)) cards = [...cards, { number, qty: n }];
@@ -112,7 +148,7 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
       const res = await fetch("/api/tcg/decks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game: "onepiece", name, cards })
+        body: JSON.stringify({ game, name, cards })
       });
       const json = await res.json();
       if (!res.ok || !json.deck) throw new Error(json.message || "error");
@@ -160,7 +196,7 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
       const t = lookup[c.number]?.type || "";
       (groups[t] = groups[t] || []).push(c);
     }
-    const order = [...TYPE_ORDER, ""].filter((t) => groups[t]?.length);
+    const order = [...R.types, ""].filter((t) => groups[t]?.length);
     return (
       <div className="tcg-deck">
         <div className="tcg-game-row">
@@ -190,10 +226,10 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
         </div>
         <div className="tcg-folder-stats">
           <div className="tcg-folder-stats__item">
-            <b className={s.total === DECK_SIZE && s.leaders === 1 ? "tcg-value__delta--up" : ""}>
+            <b className={s.total === DECK_SIZE && (!R.leader || s.leaders === 1) ? "tcg-value__delta--up" : ""}>
               {s.total}/{DECK_SIZE}
             </b>
-            <span>cartas{s.leaders ? " + líder" : " · falta el líder"}</span>
+            <span>cartas{R.leader ? (s.leaders ? " + líder" : " · falta el líder") : ""}</span>
           </div>
           <div className="tcg-folder-stats__item">
             <b className={s.missing ? "tcg-value__delta--down" : "tcg-value__delta--up"}>{s.missing}</b>
@@ -208,12 +244,12 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
         </div>
 
         {active.cards.length === 0 ? (
-          <p className="empty-note">Mazo vacío — tocá "Agregar carta" y empezá por el líder.</p>
+          <p className="empty-note">{R.leader ? 'Mazo vacío — tocá "Agregar carta" y empezá por el líder.' : 'Mazo vacío — tocá "Agregar carta" para empezar.'}</p>
         ) : (
           order.map((t) => (
             <section key={t} className="tcg-deck__group">
               <h3>
-                {TYPE_LABEL[t] || t} · {groups[t].reduce((n, c) => n + c.qty, 0)}
+                {R.labels[t] || t} · {groups[t].reduce((n, c) => n + c.qty, 0)}
               </h3>
               {groups[t]
                 .slice()
@@ -252,7 +288,7 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
                         <button
                           type="button"
                           aria-label="Una más"
-                          disabled={c.qty >= (isLeader ? 1 : MAX_COPIES)}
+                          disabled={c.qty >= (isLeader ? 1 : maxCopies(game, info))}
                           onClick={() => setQty(active, c.number, c.qty + 1, isLeader)}
                         >
                           <Plus size={12} />
@@ -269,14 +305,15 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
           <TcgQuickAdd
             title={`Agregar a "${active.name}"`}
             actionLabel="Al mazo"
-            ownedQty={(key) => ownedByNumber.get(String(key).split("_")[0]) || 0}
+            ownedQty={(key) => ownedByNumber.get(game === "pokemon" ? String(key).toUpperCase() : String(key).split("_")[0].toUpperCase()) || 0}
+            game={game}
             onAdd={(card) => {
-              const number = String(card.number).toUpperCase();
+              const number = R.key(card);
               setLookup((prev) => (prev[number] ? prev : { ...prev, [number]: { ...card, minPrice: card.price } }));
               const cur = active.cards.find((x) => x.number === number)?.qty || 0;
               const isLeader = card.type === "Leader";
-              if (!isLeader && cur >= MAX_COPIES) {
-                onToast(`Ya tenés ${MAX_COPIES} copias de ${card.title} en el mazo (el máximo).`);
+              if (!isLeader && cur >= maxCopies(game, card)) {
+                onToast(`Ya tenés ${maxCopies(game, card)} copias de ${card.title} en el mazo (el máximo).`);
                 return;
               }
               setQty(active, number, cur + 1, isLeader);
@@ -326,7 +363,7 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
                 <span className="tcg-deck-tile__body">
                   <b>{d.name}</b>
                   <small>
-                    {s.total}/{DECK_SIZE} cartas{s.leaders ? "" : " · sin líder"}
+                    {s.total}/{DECK_SIZE} cartas{R.leader && !s.leaders ? " · sin líder" : ""}
                   </small>
                   <small className={s.missing ? "tcg-value__delta--down" : "tcg-value__delta--up"}>
                     {s.missing ? `Te faltan ${s.missing} · ${formatUsd(s.cost)}` : "Completo"}
@@ -340,6 +377,8 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
 
       {importing && (
         <ImportDeckModal
+          game={game}
+          rules={R}
           onClose={() => setImporting(false)}
           onImport={(name, cards) => {
             setImporting(false);
@@ -351,18 +390,31 @@ export default function TcgDecks({ ownedByNumber, onToast, onBack }) {
   );
 }
 
-function ImportDeckModal({ onImport, onClose }) {
+function ImportDeckModal({ game, rules, onImport, onClose }) {
   const [name, setName] = useState("");
   const [text, setText] = useState("");
-  const parsed = useMemo(() => parseDeckList(text), [text]);
+  // Pokémon: los códigos de set del juego online ("SVI") → id del set ("sv1")
+  const [setCodes, setSetCodes] = useState({});
+  useEffect(() => {
+    if (game !== "pokemon") return;
+    fetch("/api/tcg/sets?game=pokemon")
+      .then((r) => r.json())
+      .then((j) => {
+        const m = {};
+        for (const s of j.sets || []) if (s.code) m[String(s.code).toUpperCase()] = s.id;
+        setSetCodes(m);
+      })
+      .catch(() => {});
+  }, [game]);
+  const parsed = useMemo(() => parseDeckList(text, game, setCodes), [text, game, setCodes]);
   const count = parsed.reduce((n, c) => n + c.qty, 0);
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <h2>Importar lista</h2>
         <p className="section-header__sub" style={{ marginTop: -8 }}>
-          Pegá la lista del mazo, una carta por línea: "4xOP01-016" o "4 OP01-016 Nami". Las líneas que no tengan ese
-          formato se ignoran.
+          Pegá la lista del mazo, una carta por línea: {rules.help}. Las líneas que no tengan ese formato se ignoran.
+          {game === "pokemon" && !Object.keys(setCodes).length && " (Cargando los códigos de set…)"}
         </p>
         <div className="field">
           <label htmlFor="deckName">Nombre</label>
@@ -370,7 +422,7 @@ function ImportDeckModal({ onImport, onClose }) {
         </div>
         <div className="field">
           <label htmlFor="deckText">Lista</label>
-          <textarea id="deckText" rows={9} value={text} onChange={(e) => setText(e.target.value)} placeholder={"1xOP01-001\n4xOP01-016\n4xOP01-025"} />
+          <textarea id="deckText" rows={9} value={text} onChange={(e) => setText(e.target.value)} placeholder={rules.example} />
           <span className="field__hint">
             {parsed.length} cartas distintas · {count} en total
           </span>

@@ -1,5 +1,6 @@
 import { sql, ensureSchema, rowToAnime } from "../../../lib/db";
 import { requireUser } from "../../../lib/auth";
+import { cleanAnimeMeta } from "../../../lib/anime";
 
 export async function GET(req) {
   const { userId, response } = requireUser(req);
@@ -32,10 +33,11 @@ export async function POST(req) {
     const rating = Number.isFinite(body.rating) ? body.rating : 0;
     const notes = body.notes || "";
     const coverUrl = body.coverUrl || null;
+    const meta = cleanAnimeMeta(body.meta) || {};
 
     const { rows } = await sql`
-      INSERT INTO animes (title, status, current, total, rating, notes, cover_url, user_id)
-      VALUES (${title}, ${status}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl}, ${userId})
+      INSERT INTO animes (title, status, current, total, rating, notes, cover_url, meta, user_id)
+      VALUES (${title}, ${status}, ${current}, ${total}, ${rating}, ${notes}, ${coverUrl}, ${JSON.stringify(meta)}::jsonb, ${userId})
       RETURNING *`;
     return Response.json({ anime: rowToAnime(rows[0]) }, { status: 201 });
   } catch (err) {

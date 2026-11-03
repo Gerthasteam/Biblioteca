@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut, Zap, Layers3, Share2 } from "lucide-react";
+import { Search, Plus, FolderPlus, ChevronLeft, Trash2, Pencil, Sparkles, LogOut, Zap, Layers3, Share2, CircleUserRound } from "lucide-react";
 import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
@@ -28,7 +28,13 @@ import TcgPurchasesModal from "./components/TcgPurchasesModal";
 import TcgDecks from "./components/TcgDecks";
 import MangaModal from "./components/MangaModal";
 import ShareModal from "./components/ShareModal";
-import { MangaMissing, MangaPile, MangaNews, MangaStats } from "./components/MangaViews";
+import { MangaMissing, MangaPile, MangaNews, MangaStats, ReadingGoal } from "./components/MangaViews";
+import GlobalSearch from "./components/GlobalSearch";
+import AccountMenu from "./components/AccountMenu";
+import AnimeDetail from "./components/AnimeDetail";
+import TcgTrades from "./components/TcgTrades";
+import { AnimeCalendar, AnimeStats } from "./components/AnimeViews";
+import { findAnimeFor, findMangaFor } from "../lib/link";
 import { SERIES_STATUS_LABEL } from "../lib/manga";
 
 const EXAMPLE_MANGA = [
@@ -78,6 +84,16 @@ export default function App() {
   const [mangaTab, setMangaTab] = useState("coleccion"); // coleccion | faltan | pila | novedades | stats
   const [mangaFilter, setMangaFilter] = useState({ publisher: "", author: "", genre: "", seriesStatus: "" });
   const [shareOpen, setShareOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false); // buscador global (Ctrl+K)
+  const [accountOpen, setAccountOpen] = useState(false); // menú de cuenta: backup, CSV, instalar
+  const [installPrompt, setInstallPrompt] = useState(null); // evento para instalar la app (PWA)
+  const [animeDetailId, setAnimeDetailId] = useState(null); // ficha de anime abierta
+  const [animeTab, setAnimeTab] = useState("lista"); // lista | calendario | stats
+  const [airing, setAiring] = useState({}); // { anilistId: { episode, airingAt, status } }
+  const [airingLoading, setAiringLoading] = useState(false);
+  const [settings, setSettings] = useState({ readingGoals: {} }); // ajustes que viajan con la cuenta
+  const [tradesOpen, setTradesOpen] = useState(false); // vista Intercambios dentro de TCG
+  const [shelfMode, setShelfMode] = useState("serie"); // Biblioteca · Manga: un lomo por "serie" o por "tomo"
   const [recommendOpen, setRecommendOpen] = useState(false);
 
   function flashToast(msg) {
@@ -92,6 +108,7 @@ export default function App() {
     setActiveTcgFolder(null);
     setActiveTcgGame(null);
     setWishlistOpen(false);
+    setTradesOpen(false);
   }
 
   function selectCategoryFilter(c) {
@@ -118,6 +135,10 @@ export default function App() {
       if (aj.animes) setAnimes(aj.animes);
       if (fj.folders) setCustomFolders(fj.folders);
       if (gj.games) setTcgGamesAdded(gj.games);
+      fetch("/api/settings")
+        .then((r) => r.json())
+        .then((j) => j.settings && setSettings(j.settings))
+        .catch(() => {});
       if (ij.error || aj.error) {
         flashToast("Todavía no conectaste la base de datos — los cambios no se guardan.");
       }
@@ -135,6 +156,32 @@ export default function App() {
       .catch(() => setUser(null));
   }, []);
 
+  // Atajo Ctrl+K (o Cmd+K) para el buscador global.
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // App instalable (PWA): registra el service worker y guarda el aviso de
+  // "instalar" del navegador para ofrecerlo desde el menú de la cuenta. Dentro
+  // del APK (Capacitor) no hace falta.
+  useEffect(() => {
+    if (typeof window === "undefined" || window.Capacitor) return;
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    const onPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, []);
+
   // Los datos (manga, anime, TCG) solo se piden una vez que sabemos quién
   // sos — antes de eso pedirlos solo daría 401.
   useEffect(() => {
@@ -150,10 +197,13 @@ export default function App() {
     const AppPlugin = typeof window !== "undefined" && window.Capacitor?.Plugins?.App;
     if (!AppPlugin) return;
     const sub = AppPlugin.addListener("backButton", () => {
-      if (recommendOpen) setRecommendOpen(false);
+      if (searchOpen) setSearchOpen(false);
+      else if (accountOpen) setAccountOpen(false);
+      else if (recommendOpen) setRecommendOpen(false);
       else if (shareOpen) setShareOpen(false);
       else if (itemModal) setItemModal(null);
       else if (mangaModalId) setMangaModalId(null);
+      else if (animeDetailId) setAnimeDetailId(null);
       else if (tcgCardId) setTcgCardId(null);
       else if (gamePickerOpen) setGamePickerOpen(false);
       else if (folderModal) setFolderModal(null);
@@ -162,13 +212,14 @@ export default function App() {
       else if (activeTcgFolder) setActiveTcgFolder(null);
       else if (activeTcgGame) setActiveTcgGame(null);
       else if (wishlistOpen) setWishlistOpen(false);
+      else if (tradesOpen) setTradesOpen(false);
       else if (user && view !== "home") navigate("home");
       else AppPlugin.exitApp();
     });
     return () => {
       Promise.resolve(sub).then((h) => h?.remove?.());
     };
-  }, [user, view, recommendOpen, gamePickerOpen, folderModal, itemModal, animeModal, detail, activeTcgFolder, activeTcgGame, tcgCardId, wishlistOpen, mangaModalId, shareOpen]);
+  }, [user, view, recommendOpen, gamePickerOpen, folderModal, itemModal, animeModal, detail, activeTcgFolder, activeTcgGame, tcgCardId, wishlistOpen, mangaModalId, shareOpen, searchOpen, accountOpen, animeDetailId, tradesOpen]);
 
   function handleAuthed(loggedUser) {
     setUser(loggedUser);
@@ -186,6 +237,14 @@ export default function App() {
     setCustomFolders([]);
     setTcgGamesAdded([]);
     setActiveTcgGame(null);
+    // lo que se pide una sola vez por sesión, también se limpia
+    setValueHistory([]);
+    setPurchases([]);
+    setSettings({ readingGoals: {} });
+    setAiring({});
+    historyLoaded.current = false;
+    purchasesLoaded.current = false;
+    airingKey.current = "";
     setView("home");
     setDetail(null);
     setUser(null);
@@ -341,30 +400,32 @@ export default function App() {
     }).catch(() => flashToast("No se pudo actualizar la lista de deseos."));
   }
 
-  // ---- Carga rápida (One Piece) ----
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  // Copias que tenés por clave de carta y por número (el número junta la
-  // normal y sus paralelas — es lo que cuenta para un mazo).
-  const onePieceOwned = useMemo(() => {
-    const byKey = new Map();
-    const byNumber = new Map();
-    const itemByKey = new Map();
+  // ---- Carga rápida (One Piece y Pokémon) ----
+  const [quickAddGame, setQuickAddGame] = useState(null); // juego de la carga rápida abierta
+  const QUICK_GAMES = ["onepiece", "pokemon"];
+  // Copias que tenés por juego, por clave de carta y "por número" — lo que
+  // cuenta para un mazo: en One Piece el número junta la normal y sus
+  // paralelas; en Pokémon es el id de la carta.
+  const tcgOwned = useMemo(() => {
+    const out = {};
+    for (const g of QUICK_GAMES) out[g] = { byKey: new Map(), byNumber: new Map(), itemByKey: new Map() };
     for (const it of items) {
       if (it.category !== "tcg") continue;
       const ref = parseTcgRef(it.notes);
-      if (!ref || ref.game !== "onepiece") continue;
+      if (!ref || !out[ref.game]) continue;
+      const o = out[ref.game];
       const key = tcgCardKey(it);
-      itemByKey.set(key, it);
+      o.itemByKey.set(key, it);
       const q = tcgQuantity(it);
-      byKey.set(key, (byKey.get(key) || 0) + q);
-      const num = String(key).split("_")[0].toUpperCase();
-      byNumber.set(num, (byNumber.get(num) || 0) + q);
+      o.byKey.set(key, (o.byKey.get(key) || 0) + q);
+      const num = (ref.game === "onepiece" ? String(key).split("_")[0] : String(key)).toUpperCase();
+      o.byNumber.set(num, (o.byNumber.get(num) || 0) + q);
     }
-    return { byKey, byNumber, itemByKey };
+    return out;
   }, [items]);
 
-  async function quickAddCard(card) {
-    const existing = onePieceOwned.itemByKey.get(card.id);
+  async function quickAddCard(card, game = "onepiece") {
+    const existing = tcgOwned[game].itemByKey.get(card.id);
     if (existing) {
       setTcgQuantity(existing, tcgQuantity(existing) + 1);
       flashToast(`${card.title}: ahora tenés ${tcgQuantity(existing) + 1}.`);
@@ -382,14 +443,14 @@ export default function App() {
           current: 1,
           total: null,
           rating: 0,
-          notes: withTcgRef("", "onepiece", card.setId, card.setName, card.id),
+          notes: withTcgRef("", game, card.setId, card.setName, card.id),
           coverUrl: card.cover || null
         })
       });
       const json = await res.json();
       if (!res.ok || !json.item) throw new Error(json.message || "error");
       setItems((prev) => [...prev, json.item]);
-      setTcgGamesAdded((prev) => (prev.includes("onepiece") ? prev : [...prev, "onepiece"]));
+      setTcgGamesAdded((prev) => (prev.includes(game) ? prev : [...prev, game]));
       flashToast(`Sumaste ${card.title} a ${card.setName}.`);
     } catch (err) {
       flashToast("No se pudo sumar la carta: " + err.message);
@@ -444,6 +505,28 @@ export default function App() {
     }
   }
 
+  // Historial de precio por carta: una vez por día y por juego se guarda el
+  // precio de hoy de las cartas que tenés cargadas.
+  const priceSnapshotSent = useRef({});
+  useEffect(() => {
+    const day = new Date().toLocaleDateString("en-CA");
+    for (const [game, prices] of Object.entries(tcgPrices)) {
+      if (priceSnapshotSent.current[game] === day) continue;
+      const keys = new Set(tcgFolders.filter((f) => f.group === game).flatMap((f) => f.items.map((it) => tcgCardKey(it))));
+      const payload = {};
+      for (const k of keys) if (k && prices[k] != null) payload[k] = prices[k];
+      if (!Object.keys(payload).length) continue;
+      priceSnapshotSent.current[game] = day;
+      fetch("/api/tcg/price-history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game, day, prices: payload })
+      }).catch(() => {
+        priceSnapshotSent.current[game] = null;
+      });
+    }
+  }, [tcgPrices, tcgFolders]);
+
   // ---- Moneda: dólares o pesos (con el dólar elegido) ----
   const [moneyMode, setMoneyMode] = useState("usd");
   const [fxRates, setFxRates] = useState({}); // { blue: 1565, tarjeta: 2034.5, … } (venta)
@@ -455,7 +538,7 @@ export default function App() {
   }, []);
   const fxLoaded = useRef(false);
   useEffect(() => {
-    if (view !== "tcg" || fxLoaded.current) return;
+    if ((view !== "tcg" && view !== "home") || fxLoaded.current) return;
     fxLoaded.current = true;
     fetch("/api/fx")
       .then((r) => r.json())
@@ -504,7 +587,7 @@ export default function App() {
   const [valueHistory, setValueHistory] = useState([]);
   const historyLoaded = useRef(false);
   useEffect(() => {
-    if (view !== "tcg" || historyLoaded.current) return;
+    if (!user || (view !== "tcg" && view !== "home") || historyLoaded.current) return;
     historyLoaded.current = true;
     fetch("/api/tcg/history")
       .then((r) => r.json())
@@ -512,7 +595,7 @@ export default function App() {
       .catch(() => {
         historyLoaded.current = false;
       });
-  }, [view]);
+  }, [view, user]);
 
   // Guarda el valor de hoy de cada juego (uno por día; si cambia — sumaste
   // cartas — se pisa). Espera un poco para no mandar uno por cada toque.
@@ -541,7 +624,7 @@ export default function App() {
   const [purchasesOpen, setPurchasesOpen] = useState(false);
   const purchasesLoaded = useRef(false);
   useEffect(() => {
-    if (view !== "tcg" || purchasesLoaded.current) return;
+    if (!user || view !== "tcg" || purchasesLoaded.current) return;
     purchasesLoaded.current = true;
     fetch("/api/tcg/purchases")
       .then((r) => r.json())
@@ -549,7 +632,7 @@ export default function App() {
       .catch(() => {
         purchasesLoaded.current = false;
       });
-  }, [view]);
+  }, [view, user]);
   // Lo que pagaste por cartas sueltas (costo por copia × copias), por juego.
   const cardInvested = useMemo(() => {
     const out = {};
@@ -961,6 +1044,10 @@ export default function App() {
       setMangaModalId(id);
       return;
     }
+    if (kind === "anime") {
+      setAnimeDetailId(id);
+      return;
+    }
     setDetail({ kind, id });
   }
 
@@ -1019,6 +1106,99 @@ export default function App() {
   );
   const mangaFiltering = Object.values(mangaFilter).some(Boolean);
 
+  // Meta del desafío de lectura del año (null la borra).
+  function setReadingGoal(year, n) {
+    const readingGoals = { ...(settings.readingGoals || {}) };
+    if (n) readingGoals[year] = n;
+    else delete readingGoals[year];
+    const next = { ...settings, readingGoals };
+    setSettings(next);
+    fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) }).catch(() =>
+      flashToast("No se pudo guardar la meta.")
+    );
+  }
+  const readingGoal = settings.readingGoals?.[new Date().getFullYear()] || null;
+
+  // Biblioteca · Manga "por tomo": un lomo por cada tomo que tenés (en orden),
+  // como un estante de verdad. Las series sin tomos cargados ocupan un lomo.
+  const shelfVolumes = useMemo(() => {
+    if (shelfMode !== "tomo" || categoryFilter !== "manga") return null;
+    const out = [];
+    for (const it of shownLibrary) {
+      const owned = it.meta?.owned || [];
+      if (!owned.length) {
+        out.push(it);
+        continue;
+      }
+      for (const n of owned) {
+        out.push({
+          ...it,
+          id: `${it.id}#${n}`,
+          parentId: it.id,
+          title: `${it.title} #${n}`,
+          total: 10, // ancho fijo de lomo
+          status: n in (it.meta?.read || {}) ? "completo" : "progreso"
+        });
+      }
+    }
+    return out;
+  }, [shelfMode, categoryFilter, shownLibrary]);
+
+  // ---- Anime: ficha, progreso con registro diario y calendario ----
+  const animeDetail = useMemo(() => (animeDetailId ? animes.find((a) => a.id === animeDetailId) : null), [animeDetailId, animes]);
+
+  function patchAnime(anime, changes) {
+    const next = { ...anime, ...changes };
+    setAnimes((prev) => prev.map((a) => (a.id === anime.id ? next : a)));
+    const payload = { ...next };
+    delete payload.id;
+    delete payload.createdAt;
+    fetch(`/api/animes/${anime.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(() => flashToast("No se pudo guardar en el servidor."));
+  }
+  function saveAnimeMeta(anime, meta) {
+    patchAnime(anime, { meta });
+  }
+  // Cambia el episodio por el que vas y anota en el registro del día cuántos
+  // viste (para las estadísticas). Empezar a verlo lo pasa a "Viendo" y
+  // llegar al último episodio, a "Completo".
+  function setAnimeProgress(anime, target) {
+    let next = Math.max(0, target | 0);
+    if (anime.total != null) next = Math.min(next, anime.total);
+    const delta = next - (anime.current || 0);
+    if (!delta) return;
+    const day = new Date().toLocaleDateString("en-CA");
+    const log = { ...(anime.meta?.watchLog || {}) };
+    log[day] = Math.max(0, (log[day] || 0) + delta);
+    if (!log[day]) delete log[day];
+    let status = anime.status;
+    if (next > 0 && status === "pendiente") status = "viendo";
+    if (anime.total != null && next >= anime.total) status = "completo";
+    patchAnime(anime, { current: next, status, meta: { ...(anime.meta || {}), watchLog: log } });
+  }
+
+  // Próximo episodio de lo que estás viendo, en vivo desde AniList (una vez
+  // por cada conjunto de animes vinculados).
+  const airingKey = useRef("");
+  useEffect(() => {
+    if (view !== "anime" && !animeDetailId && view !== "home") return;
+    const ids = [...new Set(animes.filter((a) => a.status !== "completo").map((a) => a.meta?.anilistId).filter(Boolean))].sort();
+    const key = ids.join(",");
+    if (!key || airingKey.current === key) return;
+    airingKey.current = key;
+    setAiringLoading(true);
+    fetch(`/api/anime/airing?ids=${key}`)
+      .then((r) => r.json())
+      .then((j) => setAiring(j.airing || {}))
+      .catch(() => {
+        airingKey.current = "";
+      })
+      .finally(() => setAiringLoading(false));
+  }, [view, animeDetailId, animes]);
+
   function bump(delta) {
     if (!detail || !detailRecord) return;
     let next = Math.max(0, (detailRecord.current || 0) + delta);
@@ -1068,7 +1248,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar view={view} onNavigate={navigate} user={user} onLogout={handleLogout} />
+      <Sidebar view={view} onNavigate={navigate} user={user} onOpenAccount={() => setAccountOpen(true)} onSearch={() => setSearchOpen(true)} />
 
       <header className="topbar">
         <div className="topbar__brand">
@@ -1077,9 +1257,15 @@ export default function App() {
           </div>
           <div className="topbar__title">Mi Colección</div>
         </div>
-        <button type="button" className="icon-btn" aria-label="Cerrar sesión" onClick={handleLogout}>
-          <LogOut size={16} />
-        </button>
+        <span style={{ display: "flex", gap: 8 }}>
+          <button type="button" className="icon-btn" aria-label="Buscar" onClick={() => setSearchOpen(true)}>
+            <Search size={16} />
+          </button>
+          <button type="button" className="icon-btn" aria-label="Tu cuenta" onClick={() => setAccountOpen(true)}>
+            <CircleUserRound size={17} />
+          </button>
+        </span>
+
       </header>
 
       <main className="main">
@@ -1089,6 +1275,9 @@ export default function App() {
               animes={animes}
               onNavigate={navigate}
               onOpen={openDetail}
+              airing={airing}
+              valueHistory={valueHistory}
+              readingGoal={readingGoal}
             />
           )}
 
@@ -1133,14 +1322,14 @@ export default function App() {
                 </div>
               </section>
 
-              {view === "tcg" && activeTcgGame && !activeTcgFolder && !search && !(activeTcgGame === "onepiece" && tcgGameTab === "mazos") && (
+              {view === "tcg" && activeTcgGame && !activeTcgFolder && !search && !(QUICK_GAMES.includes(activeTcgGame) && tcgGameTab === "mazos") && (
                 <div className="tcg-game-row">
                   <button type="button" className="btn subtle" onClick={() => setActiveTcgGame(null)}>
                     <ChevronLeft size={14} />
                     Mis TCG
                   </button>
-                  {activeTcgGame === "onepiece" && (
-                    <button type="button" className="btn" onClick={() => setQuickAddOpen(true)}>
+                  {QUICK_GAMES.includes(activeTcgGame) && (
+                    <button type="button" className="btn" onClick={() => setQuickAddGame(activeTcgGame)}>
                       <Zap size={14} />
                       Carga rápida
                     </button>
@@ -1173,7 +1362,7 @@ export default function App() {
               )}
 
               {((view === "manga" && !search && mangaItems.length > 1 && mangaTab === "coleccion" && !mangaFiltering) ||
-                (view === "biblioteca" && categoryFilter === "manga" && !search && mangaItems.length > 1)) && (
+                (view === "biblioteca" && categoryFilter === "manga" && !search && mangaItems.length > 1 && shelfMode === "serie")) && (
                 <p className="section-header__sub" style={{ marginTop: -10, marginBottom: 14 }}>
                   Mantené apretado un manga (click o dedo) y arrastralo para reordenarlo.
                 </p>
@@ -1249,6 +1438,9 @@ export default function App() {
               {view === "manga" && mangaItems.length > 0 && mangaTab === "faltan" && (
                 <MangaMissing items={mangaItems} onOpen={(id) => setMangaModalId(id)} onSaveMeta={saveMangaMeta} onToggleWish={toggleWish} />
               )}
+              {view === "manga" && mangaItems.length > 0 && (mangaTab === "pila" || mangaTab === "stats") && (
+                <ReadingGoal items={mangaItems} goal={readingGoal} onSetGoal={setReadingGoal} />
+              )}
               {view === "manga" && mangaItems.length > 0 && mangaTab === "pila" && (
                 <MangaPile items={mangaItems} onOpen={(id) => setMangaModalId(id)} onSaveMeta={saveMangaMeta} />
               )}
@@ -1278,7 +1470,26 @@ export default function App() {
                   />
                 ))}
 
+              {view === "anime" && animes.length > 0 && (
+                <div className="tcg-game-tabs manga-tabs" role="tablist">
+                  {[
+                    ["lista", "Mis animes"],
+                    ["calendario", "Calendario"],
+                    ["stats", "Estadísticas"]
+                  ].map(([k, label]) => (
+                    <button key={k} type="button" role="tab" aria-selected={animeTab === k} className={animeTab === k ? "active" : ""} onClick={() => setAnimeTab(k)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {view === "anime" && animes.length > 0 && animeTab === "calendario" && (
+                <AnimeCalendar animes={animes} airing={airing} loading={airingLoading} onOpen={(id) => setAnimeDetailId(id)} />
+              )}
+              {view === "anime" && animes.length > 0 && animeTab === "stats" && <AnimeStats animes={animes} />}
+
               {view === "anime" &&
+                (animes.length === 0 || animeTab === "lista") &&
                 (animes.length === 0 ? (
                   <>
                     <p className="empty-note" style={{ marginBottom: 16 }}>
@@ -1318,8 +1529,8 @@ export default function App() {
                               Agregar carta
                             </button>
                           )}
-                          {activeTcgFolder.game === "onepiece" && (
-                            <button type="button" className="btn subtle" onClick={() => setQuickAddOpen(true)}>
+                          {QUICK_GAMES.includes(activeTcgFolder.game) && (
+                            <button type="button" className="btn subtle" onClick={() => setQuickAddGame(activeTcgFolder.game)}>
                               <Zap size={14} />
                               Carga rápida
                             </button>
@@ -1432,6 +1643,8 @@ export default function App() {
                         />
                       )}
                     </>
+                  ) : tradesOpen ? (
+                    <TcgTrades items={items} priceOf={tcgItemPrice} onOpen={openTcgCard} onBack={() => setTradesOpen(false)} onToast={flashToast} />
                   ) : wishlistOpen ? (
                     <>
                       <div className="tcg-game-row">
@@ -1488,6 +1701,7 @@ export default function App() {
                           rates={fxRates}
                           invested={totalInvested}
                           onOpenPurchases={() => setPurchasesOpen(true)}
+                          onOpenTrades={() => setTradesOpen(true)}
                         />
                       )}
                       {shownTcgGames.length === 0 && (
@@ -1508,7 +1722,7 @@ export default function App() {
                       <div className="tcg-game-header">
                         <TcgLogo gameKey={activeTcgGame} small />
                       </div>
-                      {activeTcgGame === "onepiece" && (
+                      {QUICK_GAMES.includes(activeTcgGame) && (
                         <div className="tcg-game-tabs" role="tablist">
                           {[
                             ["carpetas", "Carpetas"],
@@ -1528,9 +1742,11 @@ export default function App() {
                           ))}
                         </div>
                       )}
-                      {activeTcgGame === "onepiece" && tcgGameTab === "mazos" ? (
+                      {QUICK_GAMES.includes(activeTcgGame) && tcgGameTab === "mazos" ? (
                         <TcgDecks
-                          ownedByNumber={onePieceOwned.byNumber}
+                          key={activeTcgGame}
+                          game={activeTcgGame}
+                          ownedByNumber={tcgOwned[activeTcgGame].byNumber}
                           onToast={flashToast}
                           onBack={() => setActiveTcgGame(null)}
                         />
@@ -1578,12 +1794,26 @@ export default function App() {
                 ) : shownLibrary.length === 0 ? (
                   <p className="empty-note">No hay títulos que coincidan con el filtro o la búsqueda.</p>
                 ) : (
-                  <Shelf
-                    items={shownLibrary}
-                    onOpen={(id) => openDetail("item", id)}
-                    reorderable={categoryFilter === "manga" && !search}
-                    onReorder={(ids) => reorderCategory("manga", ids)}
-                  />
+                  <>
+                    {categoryFilter === "manga" && (
+                      <div className="tcg-view-toggle shelf-mode" role="tablist">
+                        {[
+                          ["serie", "Un lomo por serie"],
+                          ["tomo", "Un lomo por tomo"]
+                        ].map(([k, label]) => (
+                          <button key={k} type="button" role="tab" aria-selected={shelfMode === k} className={shelfMode === k ? "active" : ""} onClick={() => setShelfMode(k)}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <Shelf
+                      items={shelfVolumes || shownLibrary}
+                      onOpen={(id) => openDetail("item", String(id).split("#")[0])}
+                      reorderable={categoryFilter === "manga" && !search && !shelfVolumes}
+                      onReorder={(ids) => reorderCategory("manga", ids)}
+                    />
+                  </>
                 ))}
             </>
           )}
@@ -1634,8 +1864,39 @@ export default function App() {
         />
       )}
 
+      {animeDetail && (
+        <AnimeDetail
+          anime={animeDetail}
+          airing={animeDetail.meta?.anilistId ? airing[animeDetail.meta.anilistId] : null}
+          relatedManga={findMangaFor(animeDetail, items)}
+          onOpenManga={(id) => {
+            setAnimeDetailId(null);
+            setMangaModalId(id);
+          }}
+          onClose={() => setAnimeDetailId(null)}
+          onBump={(a, d) => setAnimeProgress(a, (a.current || 0) + d)}
+          onSetProgress={setAnimeProgress}
+          onSaveMeta={saveAnimeMeta}
+          onSetStatus={(a, status) => patchAnime(a, { status })}
+          onEdit={() => {
+            setAnimeModal({ editing: animeDetail });
+            setAnimeDetailId(null);
+          }}
+          onDelete={() => {
+            if (!window.confirm(`¿Eliminar "${animeDetail.title}"?`)) return;
+            setAnimeDetailId(null);
+            deleteAnime(animeDetail.id);
+          }}
+        />
+      )}
+
       {mangaModalItem && (
         <MangaModal
+          relatedAnime={findAnimeFor(mangaModalItem, animes)}
+          onOpenAnime={(id) => {
+            setMangaModalId(null);
+            setAnimeDetailId(id);
+          }}
           item={mangaModalItem}
           onClose={() => setMangaModalId(null)}
           onSaveMeta={saveMangaMeta}
@@ -1655,6 +1916,49 @@ export default function App() {
 
       {shareOpen && <ShareModal onClose={() => setShareOpen(false)} onToast={flashToast} />}
 
+      {searchOpen && (
+        <GlobalSearch
+          items={items}
+          animes={animes}
+          onClose={() => setSearchOpen(false)}
+          onPick={(kind, id) => {
+            setSearchOpen(false);
+            if (kind === "manga") setMangaModalId(id);
+            else if (kind === "tcg") openTcgCard(id);
+            else if (kind === "anime") openDetail("anime", id);
+            else openDetail("item", id);
+          }}
+        />
+      )}
+
+      {accountOpen && (
+        <AccountMenu
+          user={user}
+          items={items}
+          animes={animes}
+          installPrompt={installPrompt}
+          onInstall={async () => {
+            installPrompt.prompt();
+            await installPrompt.userChoice.catch(() => {});
+            setInstallPrompt(null);
+          }}
+          onSearch={() => {
+            setAccountOpen(false);
+            setSearchOpen(true);
+          }}
+          onRestored={() => {
+            setAccountOpen(false);
+            loadAll();
+          }}
+          onLogout={() => {
+            setAccountOpen(false);
+            handleLogout();
+          }}
+          onClose={() => setAccountOpen(false)}
+          onToast={flashToast}
+        />
+      )}
+
       {purchasesOpen && (
         <TcgPurchasesModal
           purchases={purchases}
@@ -1667,11 +1971,12 @@ export default function App() {
         />
       )}
 
-      {quickAddOpen && (
+      {quickAddGame && (
         <TcgQuickAdd
-          ownedQty={(key) => onePieceOwned.byKey.get(key) || 0}
-          onAdd={quickAddCard}
-          onClose={() => setQuickAddOpen(false)}
+          game={quickAddGame}
+          ownedQty={(key) => tcgOwned[quickAddGame].byKey.get(key) || 0}
+          onAdd={(card) => quickAddCard(card, quickAddGame)}
+          onClose={() => setQuickAddGame(null)}
         />
       )}
 

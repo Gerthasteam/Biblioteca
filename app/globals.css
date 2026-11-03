@@ -189,7 +189,7 @@ a{ color:inherit; }
 .home-section{ margin-bottom:30px; }
 .home-section__head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px; }
 .home-section__head h2{ font-size:1.08rem; font-family:'Zen Kaku Gothic New'; font-weight:700; }
-.home-section__head a{ font-size:.78rem; color:var(--secondary); cursor:pointer; background:none; border:none; font-weight:600; }
+.home-section__head a, .home-section__head button{ font-size:.78rem; color:var(--secondary); cursor:pointer; background:none; border:none; font-weight:600; }
 
 .rail{ display:flex; gap:14px; overflow-x:auto; padding-bottom:6px; }
 .rail::-webkit-scrollbar{ height:6px; }
@@ -1063,3 +1063,68 @@ button, a{ -webkit-tap-highlight-color:transparent; }
   .manga-stats__row{ grid-template-columns:84px 1fr auto; }
   .manga-months{ gap:3px; }
 }
+
+/* ---------- buscador global (Ctrl+K) ---------- */
+.gsearch{ gap:10px; }
+.gsearch__input{ font-size:1rem; padding:12px 14px 12px 38px; }
+.gsearch__results{ display:flex; flex-direction:column; gap:2px; max-height:55vh; overflow-y:auto; min-height:60px; }
+.gsearch__row{
+  display:flex; align-items:center; gap:12px; padding:6px 8px; border-radius:8px; border:none; background:none;
+  color:var(--text); text-align:left; cursor:pointer;
+}
+.gsearch__row.active{ background:var(--surface-hover); }
+.gsearch__thumb{ width:34px; aspect-ratio:2/3; border-radius:4px; background-size:cover; background-position:center; background-color:var(--bg-soft); flex-shrink:0; }
+.gsearch__info{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.gsearch__info b{ font-size:.86rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gsearch__info small{ font-size:.7rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:4px; }
+.gsearch__hint{ font-size:.68rem; color:var(--text-faint); margin:0; text-align:right; }
+@media (hover:none){ .gsearch__hint{ display:none; } }
+
+/* ---------- menú de cuenta ---------- */
+.sidebar__account{
+  display:inline-flex; align-items:center; gap:8px; padding:5px 6px 5px 12px; border-radius:99px; cursor:pointer;
+  border:1px solid var(--border); background:var(--surface); color:var(--text-muted);
+}
+.sidebar__account:hover{ color:var(--text); background:var(--surface-hover); }
+.account-menu{ gap:6px; }
+.account-menu__item{
+  display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:10px; cursor:pointer; text-align:left; text-decoration:none;
+  border:1px solid var(--border-soft); background:var(--bg-soft); color:var(--text);
+}
+.account-menu__item:hover{ background:var(--surface-hover); }
+.account-menu__item svg{ color:var(--secondary); flex-shrink:0; }
+.account-menu__item span{ display:flex; flex-direction:column; gap:1px; }
+.account-menu__item b{ font-size:.86rem; }
+.account-menu__item small{ font-size:.7rem; color:var(--text-muted); }
+.account-menu__item:disabled{ opacity:.6; cursor:default; }
+
+/* vínculo manga <-> anime y avisos dentro de las fichas */
+.link-card{ display:flex; align-items:center; gap:10px; font-size:.8rem; color:var(--text-muted); background:var(--bg-soft); border:1px solid var(--border-soft); border-radius:10px; padding:9px 12px; }
+.link-card svg{ color:var(--secondary); flex-shrink:0; }
+.link-card b{ color:var(--text); }
+.anime-status{ align-self:flex-start; margin-top:6px; font-size:.78rem; padding:6px 10px; border-radius:99px; border:1px solid var(--border); background:var(--surface); color:var(--text); }
+
+/* desafío de lectura y estante por tomos */
+.reading-goal{ background:linear-gradient(160deg, var(--surface-2), var(--bg-soft)); border:1px solid var(--border-soft); border-radius:14px; padding:14px 16px; margin-bottom:16px; }
+.reading-goal__head{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.reading-goal__num b{ font-size:1.6rem; font-variant-numeric:tabular-nums; }
+.reading-goal__num span{ color:var(--text-muted); font-size:.86rem; }
+.shelf-mode{ margin:0 0 14px; }
+
+/* historial de precio en el detalle de una carta */
+.price-hist{ display:flex; flex-direction:column; gap:4px; }
+.price-hist__head{ display:flex; gap:10px; align-items:baseline; font-size:.72rem; color:var(--text-muted); flex-wrap:wrap; }
+.price-hist__head span:nth-child(2){ font-weight:700; }
+.price-hist__tip{ margin-left:auto; color:var(--text); font-variant-numeric:tabular-nums; }
+.price-hist svg{ width:100%; height:56px; display:block; cursor:crosshair; touch-action:pan-y; }
+
+.trade-qty{ align-self:center; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; padding:0 6px; }
+
+/* inicio: seguí leyendo y esta semana */
+.home-next{ position:absolute; left:6px; bottom:6px; font-size:.7rem; font-weight:800; padding:2px 7px; border-radius:6px; background:var(--accent); color:#14101C; }
+.home-week{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:8px; }
+.home-week__row{ display:flex; align-items:center; gap:10px; padding:8px; border-radius:10px; border:1px solid var(--border-soft); background:var(--surface); color:var(--text); cursor:pointer; text-align:left; }
+.home-week__row:hover{ background:var(--surface-hover); }
+.home-week__info{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.home-week__info b{ font-size:.84rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.home-week__info small{ font-size:.7rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }

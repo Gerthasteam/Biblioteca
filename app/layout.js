@@ -2,7 +2,10 @@ import "./globals.css";
 
 export const metadata = {
   title: "Mi Estante",
-  description: "Tu colección de manga, TCG, videojuegos y anime"
+  description: "Tu colección de manga, anime y cartas TCG",
+  // instalable en iPhone/iPad ("Agregar a pantalla de inicio")
+  appleWebApp: { capable: true, title: "Mi Estante", statusBarStyle: "black-translucent" },
+  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" }
 };
 
 // viewportFit "cover" + env(safe-area-inset-*) en globals.css para que en

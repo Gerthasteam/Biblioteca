@@ -9,7 +9,9 @@ import { formatSetCode } from "../../lib/tcgRef";
 // "op05119") o el nombre ("luffy") y sumás la versión que quieras con un
 // toque — aunque no hayas exportado ese set (la carpeta se crea sola). Si ya
 // la tenías, suma una copia más. Queda abierta para cargar varias seguidas.
-export default function TcgQuickAdd({ ownedQty, onAdd, onClose, title = "Carga rápida", actionLabel = "Sumar" }) {
+// También sirve para Pokémon (game="pokemon"): id de carta ("sv1-63"), set +
+// número ("SVI 63") o nombre.
+export default function TcgQuickAdd({ game = "onepiece", ownedQty, onAdd, onClose, title = "Carga rápida", actionLabel = "Sumar" }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,7 +33,7 @@ export default function TcgQuickAdd({ ownedQty, onAdd, onClose, title = "Carga r
     const t = setTimeout(() => {
       setLoading(true);
       setError(false);
-      fetch(`/api/tcg/search?game=onepiece&q=${encodeURIComponent(query)}`)
+      fetch(`/api/tcg/search?game=${game}&q=${encodeURIComponent(query)}`)
         .then((r) => r.json())
         .then((json) => {
           if (cancelled) return;
@@ -45,7 +47,7 @@ export default function TcgQuickAdd({ ownedQty, onAdd, onClose, title = "Carga r
       cancelled = true;
       clearTimeout(t);
     };
-  }, [q]);
+  }, [q, game]);
 
   function add(card) {
     onAdd(card);
@@ -64,7 +66,7 @@ export default function TcgQuickAdd({ ownedQty, onAdd, onClose, title = "Carga r
             type="text"
             className="search"
             style={{ width: "100%" }}
-            placeholder="Código (OP05-119) o nombre (Luffy)…"
+            placeholder={game === "pokemon" ? "Nombre (Pikachu), set y número (SVI 63) o id (sv1-63)…" : "Código (OP05-119) o nombre (Luffy)…"}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />

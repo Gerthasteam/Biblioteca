@@ -24,6 +24,7 @@ async function pokemonSets() {
       series: s.series || null,
       releaseDate: s.releaseDate || null,
       total: s.total || s.printedTotal || null,
+      code: s.ptcgoCode || null,
       logo: s.images?.logo || s.images?.symbol || null
     }));
     return Response.json({ sets });

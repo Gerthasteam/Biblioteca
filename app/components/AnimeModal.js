@@ -13,6 +13,9 @@ export default function AnimeModal({ editing, onClose, onSave, onDelete }) {
   const [notes, setNotes] = useState(editing ? editing.notes : "");
   const [coverUrl, setCoverUrl] = useState(editing ? editing.coverUrl || "" : "");
   const [saving, setSaving] = useState(false);
+  // Datos de AniList del resultado elegido (estudio, géneros, formato…):
+  // se suman a la ficha del anime al guardar, y lo vinculan para el calendario.
+  const [anilist, setAnilist] = useState(null);
 
   function submit(e) {
     e.preventDefault();
@@ -26,7 +29,21 @@ export default function AnimeModal({ editing, onClose, onSave, onDelete }) {
       total: total === "" ? null : parseInt(total, 10),
       rating,
       notes: notes.trim(),
-      coverUrl: coverUrl.trim() || null
+      coverUrl: coverUrl.trim() || null,
+      ...(anilist
+        ? {
+            meta: {
+              ...(editing?.meta || {}),
+              anilistId: anilist.anilistId,
+              studios: anilist.studios,
+              genres: anilist.genres,
+              format: anilist.format,
+              duration: anilist.duration,
+              seasonYear: anilist.seasonYear,
+              airingStatus: anilist.airingStatus
+            }
+          }
+        : {})
     });
   }
 
@@ -53,6 +70,7 @@ export default function AnimeModal({ editing, onClose, onSave, onDelete }) {
               setTitle(r.title);
               if (r.cover) setCoverUrl(r.cover);
               if (r.total && total === "") setTotal(r.total);
+              if (r.anilist) setAnilist(r.anilist);
             }}
           />
         </div>

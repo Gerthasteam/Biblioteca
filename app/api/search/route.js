@@ -3,6 +3,7 @@
 // navegador, así que puede llamar a cualquier host — justo el paso que no
 // era posible desde un Artifact.
 import { GENRE_ES } from "../../../lib/manga";
+import { ANILIST_AIRING, FORMAT_LABEL } from "../../../lib/anime";
 
 const ANILIST_QUERY = `
 query ($search: String, $type: MediaType) {
@@ -17,6 +18,10 @@ query ($search: String, $type: MediaType) {
       episodes
       status
       genres
+      format
+      duration
+      seasonYear
+      studios(isMain: true) { nodes { name } }
       staff(perPage: 4, sort: RELEVANCE) { edges { role node { name { full } } } }
       description(asHtml: false)
     }
@@ -51,7 +56,13 @@ function anilistMeta(m) {
     authors,
     genres: (m.genres || []).map((g) => GENRE_ES[g] || g),
     jpStatus: JP_STATUS[m.status] ?? "",
-    jpVolumes: m.volumes || null
+    jpVolumes: m.volumes || null,
+    // para anime
+    studios: (m.studios?.nodes || []).map((s) => s.name).slice(0, 3),
+    format: FORMAT_LABEL[m.format] || m.format || "",
+    duration: m.duration || null,
+    seasonYear: m.seasonYear || null,
+    airingStatus: ANILIST_AIRING[m.status] || ""
   };
 }
 

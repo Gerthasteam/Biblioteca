@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, BookOpen, Tv, Layers, Library, LogOut } from "lucide-react";
+import { Home, BookOpen, Tv, Layers, Library, Search, CircleUserRound } from "lucide-react";
 
 export const NAV_ITEMS = [
   { key: "home", label: "Inicio", icon: Home },
@@ -10,7 +10,7 @@ export const NAV_ITEMS = [
   { key: "biblioteca", label: "Biblioteca", icon: Library }
 ];
 
-export default function Sidebar({ view, onNavigate, user, onLogout }) {
+export default function Sidebar({ view, onNavigate, user, onOpenAccount, onSearch }) {
   return (
     <header className="sidebar">
       <div className="sidebar__inner">
@@ -43,9 +43,12 @@ export default function Sidebar({ view, onNavigate, user, onLogout }) {
 
         {user && (
           <div className="sidebar__user">
-            <span className="sidebar__user-email">{user.email}</span>
-            <button type="button" className="icon-btn" aria-label="Cerrar sesión" onClick={onLogout}>
-              <LogOut size={16} />
+            <button type="button" className="icon-btn" aria-label="Buscar (Ctrl+K)" title="Buscar (Ctrl+K)" onClick={onSearch}>
+              <Search size={16} />
+            </button>
+            <button type="button" className="sidebar__account" onClick={onOpenAccount} title="Tu cuenta, backup e instalar la app">
+              <span className="sidebar__user-email">{user.email}</span>
+              <CircleUserRound size={18} />
             </button>
           </div>
         )}
