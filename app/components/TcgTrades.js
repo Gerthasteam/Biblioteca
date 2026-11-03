@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { ChevronLeft, Copy, Share2 } from "lucide-react";
-import { tcgQuantity, tcgCardKey, formatUsd } from "../../lib/tcgCard";
+import { tcgQuantity, tcgCardKey, formatUsd, SHOW_PRICES } from "../../lib/tcgCard";
 import { parseTcgRef, parseSetName } from "../../lib/tcgRef";
 import { tcgGame } from "../../lib/tcgGames";
 
@@ -60,7 +60,7 @@ export default function TcgTrades({ items, priceOf, onOpen, onBack, onToast }) {
         </button>
         <small>
           {[tcgCardKey(it), parseSetName(it.notes)].filter(Boolean).join(" · ")}
-          {priceOf(it) != null ? ` · ${formatUsd(priceOf(it))}` : ""}
+          {SHOW_PRICES && priceOf(it) != null ? ` · ${formatUsd(priceOf(it))}` : ""}
         </small>
       </div>
       {right}

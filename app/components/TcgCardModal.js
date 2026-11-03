@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Minus, Plus, Star, Pencil, Trash2 } from "lucide-react";
-import { tcgQuantity, formatUsd, toUsd, fromUsd, moneyInPesos } from "../../lib/tcgCard";
+import { tcgQuantity, formatUsd, toUsd, fromUsd, moneyInPesos, SHOW_PRICES } from "../../lib/tcgCard";
 import { parseTcgRef, parseSetName, formatSetCode, tcgCardKey } from "../../lib/tcgRef";
 
 // Etiquetas de los datos de la carta, en el orden en que se muestran.
@@ -67,11 +67,13 @@ export default function TcgCardModal({ item, card, price, onClose, onSetQuantity
                 .join(" · ")}
             </div>
 
+            {SHOW_PRICES && (
             <div className="tcg-detail__price">
               <b>{price != null ? formatUsd(price) : "Sin precio"}</b>
               <span>precio de mercado (TCGplayer)</span>
             </div>
-            {ref && ref.game !== "custom" && <PriceHistory game={ref.game} cardKey={tcgCardKey(item)} />}
+            )}
+            {SHOW_PRICES && ref && ref.game !== "custom" && <PriceHistory game={ref.game} cardKey={tcgCardKey(item)} />}
 
             <div className="tcg-detail__row">
               <span className="tcg-card__qty tcg-detail__qty">
@@ -94,6 +96,7 @@ export default function TcgCardModal({ item, card, price, onClose, onSetQuantity
               </button>
             </div>
 
+            {SHOW_PRICES && (
             <div className="tcg-detail__cost">
               <label htmlFor="tcgCost">Pagaste por copia {moneyInPesos() ? "($)" : "(US$)"}</label>
               <input
@@ -113,6 +116,7 @@ export default function TcgCardModal({ item, card, price, onClose, onSetQuantity
                 </span>
               )}
             </div>
+            )}
 
             {stats.length > 0 && (
               <dl className="tcg-detail__stats">

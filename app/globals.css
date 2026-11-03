@@ -1128,3 +1128,8 @@ button, a{ -webkit-tap-highlight-color:transparent; }
 .home-week__info{ display:flex; flex-direction:column; gap:2px; min-width:0; }
 .home-week__info b{ font-size:.84rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .home-week__info small{ font-size:.7rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
+
+.tcg-value--compact{ display:flex; gap:12px; flex-wrap:wrap; padding:12px; }
+.tcg-value--compact .tcg-value__wish{ flex:1 1 220px; }
+.tcg-value__wish--trades{ color:var(--secondary); }
+.tcg-value__wish--trades:hover{ border-color:var(--secondary); }

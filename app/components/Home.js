@@ -5,7 +5,7 @@ import { BookOpen, Tv, Layers, Target } from "lucide-react";
 import { PosterCard } from "./CardGrid";
 import { posterBackground } from "../../lib/ui";
 import { unreadVolumes, todayLocal } from "../../lib/manga";
-import { formatUsd } from "../../lib/tcgCard";
+import { formatUsd, SHOW_PRICES } from "../../lib/tcgCard";
 import { readingYearStats } from "./MangaViews";
 
 // El último título de cada categoría (por fecha en que lo agregaste) se usa
@@ -124,7 +124,7 @@ export default function Home({ items, animes, onNavigate, onOpen, airing = {}, v
             <span className="hero__stat-icon"><Layers size={18} /></span>
             <div>
               <b>{tcgOwned.length}</b>
-              <span>Cartas{tcgValueNow ? ` · ${formatUsd(tcgValueNow)}` : ""}</span>
+              <span>Cartas{SHOW_PRICES && tcgValueNow ? ` · ${formatUsd(tcgValueNow)}` : ""}</span>
             </div>
           </div>
           {(readingGoal || readThisYear > 0) && (

@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Star, TrendingUp, TrendingDown } from "lucide-react";
-import { formatUsd, MONEY_MODES } from "../../lib/tcgCard";
+import { Star, TrendingUp, TrendingDown, ArrowLeftRight } from "lucide-react";
+import { formatUsd, MONEY_MODES, SHOW_PRICES } from "../../lib/tcgCard";
 
 const RANGES = [
   { key: 30, label: "30 días" },
@@ -70,6 +70,32 @@ export default function TcgValuePanel({
   const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD en hora local
 
   const all = useMemo(() => buildSeries(history, live, today), [history, live, today]);
+
+  // Sin precios (ver SHOW_PRICES en lib/tcgCard.js): solo los accesos a la
+  // lista de deseos y a intercambios.
+  if (!SHOW_PRICES) {
+    return (
+      <section className="tcg-value tcg-value--compact">
+        <button type="button" className="tcg-value__wish" onClick={onOpenWishlist}>
+          <Star size={16} fill="currentColor" />
+          <span>
+            <b>Lista de deseos</b>
+            <small>
+              {wishCount} carta{wishCount === 1 ? "" : "s"}
+            </small>
+          </span>
+        </button>
+        <button type="button" className="tcg-value__wish tcg-value__wish--trades" onClick={onOpenTrades}>
+          <ArrowLeftRight size={16} />
+          <span>
+            <b>Intercambios</b>
+            <small>Repetidas y las que buscás</small>
+          </span>
+        </button>
+      </section>
+    );
+  }
+
   const series = all.slice(-range);
   const now = all.length ? all[all.length - 1].value : Object.values(live).reduce((a, b) => a + b, 0);
   const ref7 = all.length > 7 ? all[all.length - 8].value : all.length ? all[0].value : null;

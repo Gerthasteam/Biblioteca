@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { tcgCardKey, tcgQuantity, rarityRank, formatUsd } from "../../lib/tcgCard";
+import { tcgCardKey, tcgQuantity, rarityRank, formatUsd, SHOW_PRICES } from "../../lib/tcgCard";
 
 // "Estadísticas" de una carpeta TCG (como el Set Analytics de Collectr):
 // cuánto completaste por rareza y en paralelas, y las cartas más caras que
@@ -73,8 +73,8 @@ export default function TcgSetStats({ items, info, prices, onOpen }) {
         </p>
       </section>
 
-      <TopList title="Tus cartas más caras" rows={topOwned} empty="Todavía no tenés cartas con precio en esta carpeta." onOpen={onOpen} />
-      <TopList title="Las más caras que te faltan" rows={topMissing} empty="¡No te falta ninguna con precio!" onOpen={onOpen} />
+      {SHOW_PRICES && <TopList title="Tus cartas más caras" rows={topOwned} empty="Todavía no tenés cartas con precio en esta carpeta." onOpen={onOpen} />}
+      {SHOW_PRICES && <TopList title="Las más caras que te faltan" rows={topMissing} empty="¡No te falta ninguna con precio!" onOpen={onOpen} />}
     </div>
   );
 }

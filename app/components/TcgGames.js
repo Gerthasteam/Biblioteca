@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { TCG_GAMES, tcgGame, tcgLogoUrl } from "../../lib/tcgGames";
 import { formatSetCode } from "../../lib/tcgRef";
-import { tcgValue, formatUsd } from "../../lib/tcgCard";
+import { tcgValue, formatUsd, SHOW_PRICES } from "../../lib/tcgCard";
 
 // "2023/03/31" (formato de la API de Pokémon) -> "31 mar 2023"
 function formatReleaseDate(raw) {
@@ -27,7 +27,7 @@ export function TcgFolderTile({ folder, gameKey, meta, prices, onOpen, onDelete 
   const owned = folder.items.filter((it) => it.status === "completo").length;
   const total = folder.items.length;
   const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
-  const value = prices ? tcgValue(folder.items, prices).owned : 0;
+  const value = SHOW_PRICES && prices ? tcgValue(folder.items, prices).owned : 0;
   const badge = formatReleaseDate(meta?.releaseDate) || (!folder.custom && formatSetCode(folder.setId)) || null;
   const showLogo = meta?.logo && !logoFailed;
 

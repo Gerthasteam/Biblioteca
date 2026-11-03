@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, Plus, Minus, Trash2, Pencil, Upload, Copy } from "lucide-react";
-import { formatUsd } from "../../lib/tcgCard";
+import { formatUsd, SHOW_PRICES } from "../../lib/tcgCard";
 import TcgQuickAdd from "./TcgQuickAdd";
 
 // Reglas de mazo por juego. One Piece: 1 líder + 50 cartas, hasta 4 copias
@@ -231,14 +231,19 @@ export default function TcgDecks({ game = "onepiece", ownedByNumber, onToast, on
             </b>
             <span>cartas{R.leader ? (s.leaders ? " + líder" : " · falta el líder") : ""}</span>
           </div>
-          <div className="tcg-folder-stats__item">
-            <b className={s.missing ? "tcg-value__delta--down" : "tcg-value__delta--up"}>{s.missing}</b>
-            <span>{s.missing ? "copias te faltan" : "¡lo tenés completo!"}</span>
-          </div>
-          {s.missing > 0 && (
+          {active.cards.length > 0 && (
             <div className="tcg-folder-stats__item">
-              <b>{formatUsd(s.cost)}</b>
-              <span>para completarlo{s.unknownPrice ? ` (+${s.unknownPrice} sin precio)` : ""}</span>
+              <b className={s.missing ? "tcg-value__delta--down" : "tcg-value__delta--up"}>{s.missing}</b>
+              <span>{s.missing ? "copias te faltan" : "¡tenés todas las cartas!"}</span>
+            </div>
+          )}
+          {SHOW_PRICES && s.missing > 0 && (
+            <div className="tcg-folder-stats__item">
+              <b>{s.cost > 0 ? formatUsd(s.cost) : "Sin precio"}</b>
+              <span>
+                para completarlo
+                {s.cost > 0 && s.unknownPrice ? ` (+${s.unknownPrice} carta${s.unknownPrice === 1 ? "" : "s"} sin precio)` : ""}
+              </span>
             </div>
           )}
         </div>
@@ -269,7 +274,7 @@ export default function TcgDecks({ game = "onepiece", ownedByNumber, onToast, on
                         <b>{info.title || c.number}</b>
                         <small>
                           {[c.number, info.rarity, info.color].filter(Boolean).join(" · ")}
-                          {info.minPrice != null && <span className="tcg-quick__price">{formatUsd(info.minPrice)}</span>}
+                          {SHOW_PRICES && info.minPrice != null && <span className="tcg-quick__price">{formatUsd(info.minPrice)}</span>}
                         </small>
                         <small>
                           {lack ? (
@@ -365,8 +370,8 @@ export default function TcgDecks({ game = "onepiece", ownedByNumber, onToast, on
                   <small>
                     {s.total}/{DECK_SIZE} cartas{R.leader && !s.leaders ? " · sin líder" : ""}
                   </small>
-                  <small className={s.missing ? "tcg-value__delta--down" : "tcg-value__delta--up"}>
-                    {s.missing ? `Te faltan ${s.missing} · ${formatUsd(s.cost)}` : "Completo"}
+                  <small className={s.missing ? "tcg-value__delta--down" : d.cards.length ? "tcg-value__delta--up" : ""}>
+                    {!d.cards.length ? "Vacío" : s.missing ? `Te faltan ${s.missing}${SHOW_PRICES ? ` · ${formatUsd(s.cost)}` : ""}` : "Tenés todas las cartas"}
                   </small>
                 </span>
               </button>

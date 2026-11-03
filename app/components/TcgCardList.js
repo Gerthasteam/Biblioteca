@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Minus, Plus, Star } from "lucide-react";
 import { posterBackground } from "../../lib/ui";
-import { tcgCardKey, tcgQuantity, rarityRank, formatUsd } from "../../lib/tcgCard";
+import { tcgCardKey, tcgQuantity, rarityRank, formatUsd, SHOW_PRICES } from "../../lib/tcgCard";
 import { parseSetName } from "../../lib/tcgRef";
 
 const STATUS_FILTERS = [
@@ -14,7 +14,7 @@ const STATUS_FILTERS = [
 const SORTS = [
   { key: "numero", label: "Número" },
   { key: "rareza", label: "Rareza" },
-  { key: "precio", label: "Precio" },
+  ...(SHOW_PRICES ? [{ key: "precio", label: "Precio" }] : []),
   { key: "nombre", label: "Nombre" }
 ];
 
@@ -159,7 +159,7 @@ export default function TcgCardList({ items, info, prices, onToggleOwned, onSetQ
                   {card.type && <span className="tcg-card__type">· {card.type}</span>}
                 </div>
                 <div className="tcg-card__bottom">
-                  <span className="tcg-card__price">{price != null ? formatUsd(price) : ""}</span>
+                  <span className="tcg-card__price">{SHOW_PRICES && price != null ? formatUsd(price) : ""}</span>
                   <span className="tcg-card__qty">
                     <button type="button" aria-label="Una copia menos" disabled={qty === 0} onClick={() => onSetQuantity(it, qty - 1)}>
                       <Minus size={12} />

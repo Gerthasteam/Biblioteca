@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search, Plus, Check } from "lucide-react";
-import { formatUsd } from "../../lib/tcgCard";
+import { formatUsd, SHOW_PRICES } from "../../lib/tcgCard";
 import { formatSetCode } from "../../lib/tcgRef";
 
 // Carga rápida de cartas de One Piece: escribís el código ("OP05-119",
@@ -94,7 +94,7 @@ export default function TcgQuickAdd({ game = "onepiece", ownedQty, onAdd, onClos
                   </small>
                   <small>
                     {c.variant && <span className="tcg-quick__variant">{c.variant}</span>}
-                    {c.price != null && <span className="tcg-quick__price">{formatUsd(c.price)}</span>}
+                    {SHOW_PRICES && c.price != null && <span className="tcg-quick__price">{formatUsd(c.price)}</span>}
                     {have > 0 && <span className="tcg-quick__have">Tenés {have}</span>}
                   </small>
                 </span>

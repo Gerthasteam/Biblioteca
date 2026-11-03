@@ -18,7 +18,7 @@ import { TcgLogo, TcgGameTile, TcgAddGameTile, TcgGamePicker, TcgFolderTile } fr
 import { CATEGORY_LABEL } from "../lib/ui";
 import { groupTcgFolders, parseTcgRef, formatSetCode, withTcgRef, ownedCardIds } from "../lib/tcgRef";
 import { TCG_GAMES, tcgGame } from "../lib/tcgGames";
-import { tcgValue, formatUsd, tcgCardKey, tcgQuantity, setMoney, MONEY_MODES } from "../lib/tcgCard";
+import { tcgValue, formatUsd, tcgCardKey, tcgQuantity, setMoney, MONEY_MODES, SHOW_PRICES } from "../lib/tcgCard";
 import TcgCardList from "./components/TcgCardList";
 import TcgCardModal from "./components/TcgCardModal";
 import TcgSetStats from "./components/TcgSetStats";
@@ -312,7 +312,7 @@ export default function App() {
   const [tcgPrices, setTcgPrices] = useState({});
   const pricesLoaded = useRef({}); // juego -> qué pedido ya se hizo
   useEffect(() => {
-    if (view !== "tcg") return;
+    if (!SHOW_PRICES || view !== "tcg") return;
     for (const game of shownTcgGames) {
       if (!tcgGame(game).api) continue;
       const sets =
@@ -511,7 +511,7 @@ export default function App() {
   useEffect(() => {
     const day = new Date().toLocaleDateString("en-CA");
     for (const [game, prices] of Object.entries(tcgPrices)) {
-      if (priceSnapshotSent.current[game] === day) continue;
+      if (!SHOW_PRICES || priceSnapshotSent.current[game] === day) continue;
       const keys = new Set(tcgFolders.filter((f) => f.group === game).flatMap((f) => f.items.map((it) => tcgCardKey(it))));
       const payload = {};
       for (const k of keys) if (k && prices[k] != null) payload[k] = prices[k];
@@ -538,7 +538,7 @@ export default function App() {
   }, []);
   const fxLoaded = useRef(false);
   useEffect(() => {
-    if ((view !== "tcg" && view !== "home") || fxLoaded.current) return;
+    if (!SHOW_PRICES || (view !== "tcg" && view !== "home") || fxLoaded.current) return;
     fxLoaded.current = true;
     fetch("/api/fx")
       .then((r) => r.json())
@@ -587,7 +587,7 @@ export default function App() {
   const [valueHistory, setValueHistory] = useState([]);
   const historyLoaded = useRef(false);
   useEffect(() => {
-    if (!user || (view !== "tcg" && view !== "home") || historyLoaded.current) return;
+    if (!SHOW_PRICES || !user || (view !== "tcg" && view !== "home") || historyLoaded.current) return;
     historyLoaded.current = true;
     fetch("/api/tcg/history")
       .then((r) => r.json())
@@ -601,6 +601,7 @@ export default function App() {
   // cartas — se pisa). Espera un poco para no mandar uno por cada toque.
   const lastSavedValue = useRef({});
   useEffect(() => {
+    if (!SHOW_PRICES) return;
     const t = setTimeout(() => {
       const day = new Date().toLocaleDateString("en-CA");
       for (const [game, value] of Object.entries(liveTcgValues)) {
@@ -709,7 +710,7 @@ export default function App() {
     const cards = folders.flatMap((f) => f.items);
     const owned = cards.filter((it) => it.status === "completo").length;
     if (!folders.length) return "Sin carpetas";
-    const value = tcgPrices[gameKey] ? tcgValue(cards, tcgPrices[gameKey]).owned : 0;
+    const value = SHOW_PRICES && tcgPrices[gameKey] ? tcgValue(cards, tcgPrices[gameKey]).owned : 0;
     return (
       `${folders.length} carpeta${folders.length === 1 ? "" : "s"} · ${owned}/${cards.length} cartas` +
       (value > 0 ? ` · ${formatUsd(value)}` : "")
@@ -1225,7 +1226,14 @@ export default function App() {
 
   function openAddModal() {
     if (view === "anime") setAnimeModal({ editing: null });
-    else if (view === "tcg") setItemModal({ editing: null, defaultCategory: "tcg" });
+    else if (view === "tcg") {
+      // Dentro de One Piece o Pokémon (o de una carpeta suya), "Agregar" abre
+      // la carga rápida de ese juego; el formulario general solo busca cartas
+      // de One Piece y confundía al estar en Pokémon.
+      const game = activeTcgFolder?.custom ? null : activeTcgFolder?.game || activeTcgGame;
+      if (QUICK_GAMES.includes(game)) setQuickAddGame(game);
+      else setItemModal({ editing: null, defaultCategory: "tcg" });
+    }
     else if (view === "biblioteca") setItemModal({ editing: null, defaultCategory: categoryFilter });
     else setItemModal({ editing: null, defaultCategory: "manga" });
   }
@@ -1315,10 +1323,13 @@ export default function App() {
                       onChange={(e) => setSearch(e.target.value)}
                     />
                   </span>
-                  <button type="button" className="btn" onClick={openAddModal}>
-                    <Plus size={15} />
-                    Agregar
-                  </button>
+                  {/* en Mazos se agregan cartas con el botón propio del mazo */}
+                  {!(view === "tcg" && QUICK_GAMES.includes(activeTcgGame) && tcgGameTab === "mazos" && !activeTcgFolder) && (
+                    <button type="button" className="btn" onClick={openAddModal}>
+                      <Plus size={15} />
+                      Agregar
+                    </button>
+                  )}
                 </div>
               </section>
 
@@ -1574,7 +1585,7 @@ export default function App() {
                         const owned = activeFolderItems.filter((it) => it.status === "completo").length;
                         const pct = Math.round((owned / activeFolderItems.length) * 100);
                         const value = tcgValue(activeFolderItems, tcgPrices[activeTcgFolder.game]);
-                        const hasPrices = value.owned > 0 || value.missing > 0;
+                        const hasPrices = SHOW_PRICES && (value.owned > 0 || value.missing > 0);
                         return (
                           <div className="tcg-folder-stats">
                             <div className="tcg-folder-stats__item">
@@ -1658,7 +1669,7 @@ export default function App() {
                           <b>{wishItems.length}</b>
                           <span>en tu lista de deseos</span>
                         </div>
-                        {wishTotal > 0 && (
+                        {SHOW_PRICES && wishTotal > 0 && (
                           <div className="tcg-folder-stats__item">
                             <b>{formatUsd(wishTotal)}</b>
                             <span>lo que necesitás para las que te faltan</span>
