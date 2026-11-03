@@ -1131,16 +1131,18 @@ export default function App() {
         out.push(it);
         continue;
       }
-      for (const n of owned) {
+      owned.forEach((n, i) => {
         out.push({
           ...it,
           id: `${it.id}#${n}`,
           parentId: it.id,
           title: `${it.title} #${n}`,
           total: 10, // ancho fijo de lomo
-          status: n in (it.meta?.read || {}) ? "completo" : "progreso"
+          status: n in (it.meta?.read || {}) ? "completo" : "progreso",
+          // la portada se reparte entre los lomos de la serie (ver Shelf.js)
+          slice: { index: i, count: owned.length }
         });
-      }
+      });
     }
     return out;
   }, [shelfMode, categoryFilter, shownLibrary]);

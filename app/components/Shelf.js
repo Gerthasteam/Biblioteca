@@ -24,6 +24,29 @@ function useCanHover() {
   return canHover;
 }
 
+const SPINE_H = 190; // alto del lomo (igual que .spine en globals.css)
+
+// Estante "un lomo por tomo": la portada de la serie se reparte entre sus
+// lomos — cada tomo muestra una franja distinta, así que puestos en fila
+// forman la imagen completa en vez de repetir el mismo recorte. Se escala
+// como "cover" sobre el ancho total de todos los lomos (asumiendo portada
+// 2:3) y cada lomo se corre lo que le toca.
+function sliceStyle(it, w) {
+  const { index, count } = it.slice;
+  const totalW = w * count;
+  const fitsWidth = totalW / SPINE_H > 2 / 3;
+  const bgW = fitsWidth ? totalW : (SPINE_H * 2) / 3;
+  const bgH = fitsWidth ? totalW * 1.5 : SPINE_H;
+  const x = -(index * w) - (bgW - totalW) / 2;
+  const y = -(bgH - SPINE_H) / 2;
+  return {
+    backgroundImage: `linear-gradient(rgba(0,0,0,.15), rgba(0,0,0,.5)), url('${it.coverUrl.replace(/'/g, "%27")}')`,
+    backgroundSize: `100% 100%, ${bgW}px ${bgH}px`,
+    backgroundPosition: `0 0, ${x}px ${y}px`,
+    backgroundRepeat: "no-repeat"
+  };
+}
+
 function Spine({ it, onClick, isExample, onHover, onLeave, reorderable, dragging, dragHandlers }) {
   const w = spineWidth(it);
   const label = (isExample ? "EJEMPLO · " : "") + it.title;
@@ -33,7 +56,7 @@ function Spine({ it, onClick, isExample, onHover, onLeave, reorderable, dragging
       className="spine"
       style={{
         width: w,
-        background: spineBackground(it),
+        ...(it.slice && it.coverUrl ? sliceStyle(it, w) : { background: spineBackground(it) }),
         cursor: isExample ? "default" : reorderable ? "grab" : "pointer",
         opacity: isExample ? 0.72 : dragging ? 0.35 : 1
       }}
