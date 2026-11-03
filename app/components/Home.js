@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Tv, Layers, Target } from "lucide-react";
 import { PosterCard } from "./CardGrid";
 import { posterBackground } from "../../lib/ui";
@@ -26,7 +26,30 @@ function coverStyle(latest) {
   };
 }
 
+// Banner de inicio: uno al azar cada vez que se carga la página, sin repetir
+// el de la vez anterior. Se elige recién en el navegador (useEffect) para que
+// no choque con el HTML del servidor.
+const BANNERS = ["/banners/banner-1.webp", "/banners/banner-2.webp", "/banners/banner-3.webp", "/banners/banner-4.webp"];
+
+function useRandomBanner() {
+  const [banner, setBanner] = useState(null);
+  useEffect(() => {
+    let last = -1;
+    try {
+      last = parseInt(localStorage.getItem("hero-banner"), 10);
+    } catch {}
+    let i = Math.floor(Math.random() * BANNERS.length);
+    if (BANNERS.length > 1 && i === last) i = (i + 1 + Math.floor(Math.random() * (BANNERS.length - 1))) % BANNERS.length;
+    try {
+      localStorage.setItem("hero-banner", String(i));
+    } catch {}
+    setBanner(BANNERS[i]);
+  }, []);
+  return banner;
+}
+
 export default function Home({ items, animes, onNavigate, onOpen, airing = {}, valueHistory = [], readingGoal = null }) {
+  const banner = useRandomBanner();
   const mangaItems = useMemo(() => items.filter((i) => i.category === "manga"), [items]);
 
   // Seguí leyendo: series con tomos sin leer, primero las que leíste hace
@@ -103,8 +126,7 @@ export default function Home({ items, animes, onNavigate, onOpen, airing = {}, v
   return (
     <div>
       <section className="hero">
-        <h1>¡Hola!</h1>
-        <p>Tu colección de manga, anime y cartas TCG, en un solo lugar.</p>
+        <div className="hero__banner" style={banner ? { backgroundImage: `url('${banner}')` } : undefined} role="img" aria-label="Mi colección" />
         <div className="hero__stats">
           <div className="hero__stat">
             <span className="hero__stat-icon"><BookOpen size={18} /></span>
