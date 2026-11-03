@@ -161,14 +161,25 @@ a{ color:inherit; }
 
 /* ---------- home dashboard ---------- */
 /* Banner de inicio: la imagen entera (3:1, ya trae el título "Mi colección")
-   y abajo las cifras de la colección. */
-.hero{ margin-bottom:26px; }
+   con las cifras de la colección encima, abajo a la izquierda, en pastillas
+   transparentes. En pantallas chicas el banner queda muy bajo y las cifras
+   pasan abajo de la imagen. */
+.hero{ position:relative; margin-bottom:26px; }
 .hero__banner{
   aspect-ratio:3 / 1; width:100%;
   border-radius:var(--radius); border:1px solid var(--border-soft);
   background-color:var(--surface); background-size:cover; background-position:center;
 }
-.hero__stats{ display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; }
+.hero__stats{ position:absolute; left:18px; right:18px; bottom:12px; display:flex; gap:10px; flex-wrap:wrap; }
+@media (min-width:901px){
+  /* más compactas para que no pisen el título del banner */
+  .hero__stats .hero__stat{ padding:5px 12px 5px 5px; gap:8px; }
+  .hero__stats .hero__stat-icon{ width:28px; height:28px; }
+  .hero__stats .hero__stat b{ font-size:1rem; }
+}
+@media (max-width:900px){
+  .hero__stats{ position:static; margin-top:14px; }
+}
 .hero__stat{
   display:flex; align-items:center; gap:10px; padding:8px 14px 8px 8px; border-radius:99px;
   background:rgba(13,10,20,.5); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(6px);
